@@ -8,7 +8,7 @@ import (
 	"debug/pe"
 	"errors"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
 )
 
 // GetSBAT returns the SBAT section from the PE file.

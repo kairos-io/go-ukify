@@ -13,8 +13,8 @@ import (
 	"github.com/foxboron/go-uefi/efi/util"
 	"github.com/google/uuid"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot/pesign"
-	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/itxaka/go-secureboot/pkg/constants"
+	"github.com/itxaka/go-secureboot/pkg/pesign"
 )
 
 // Entry is a UEFI database entry.

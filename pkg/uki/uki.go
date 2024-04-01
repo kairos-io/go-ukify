@@ -10,9 +10,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
-	"github.com/siderolabs/talos/internal/pkg/secureboot/measure"
-	"github.com/siderolabs/talos/internal/pkg/secureboot/pesign"
+	"github.com/itxaka/go-secureboot/pkg/measure"
+	"github.com/itxaka/go-secureboot/pkg/pesign"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
 )
 
 // section is a UKI file section.

@@ -14,13 +14,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot/measure/internal/pcr"
+	"github.com/itxaka/go-secureboot/pkg/measure/pcr"
 )
 
 func TestSign(t *testing.T) {
 	t.Parallel()
 
-	pemKey, err := os.ReadFile("../../testdata/pcr-signing-key.pem")
+	pemKey, err := os.ReadFile("../testdata/pcr-signing-key.pem")
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(pemKey)

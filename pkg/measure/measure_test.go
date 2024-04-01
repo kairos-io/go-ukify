@@ -19,8 +19,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
-	"github.com/siderolabs/talos/internal/pkg/secureboot/measure"
+	"github.com/itxaka/go-secureboot/pkg/measure"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
 )
 
 const (

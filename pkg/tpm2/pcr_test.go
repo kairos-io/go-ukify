@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	tpm2internal "github.com/siderolabs/talos/internal/pkg/secureboot/tpm2"
+	tpm2internal "github.com/itxaka/go-secureboot/pkg/tpm2"
 )
 
 func TestGetSelection(t *testing.T) {

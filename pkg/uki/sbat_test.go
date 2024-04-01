@@ -9,13 +9,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot/uki"
+	"github.com/itxaka/go-secureboot/pkg/uki"
 )
 
 func TestGetSBAT(t *testing.T) {
 	t.Parallel()
 
-	data, err := uki.GetSBAT("../pesign/testdata/systemd-bootx64.efi")
+	data, err := uki.GetSBAT("testdata/systemd-bootx64.efi")
 	require.NoError(t, err)
 
 	require.Equal(t,

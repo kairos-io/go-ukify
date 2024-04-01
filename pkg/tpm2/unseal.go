@@ -17,8 +17,8 @@ import (
 	"github.com/google/go-tpm/tpm2"
 	"github.com/google/go-tpm/tpm2/transport"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
-	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/itxaka/go-secureboot/pkg/constants"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
 )
 
 // Unseal unseals a sealed blob using the TPM

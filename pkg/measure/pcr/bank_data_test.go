@@ -14,9 +14,9 @@ import (
 	"github.com/google/go-tpm/tpm2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
-	"github.com/siderolabs/talos/internal/pkg/secureboot/measure/internal/pcr"
-	tpm2internal "github.com/siderolabs/talos/internal/pkg/secureboot/tpm2"
+	"github.com/itxaka/go-secureboot/pkg/measure/pcr"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
+	tpm2internal "github.com/itxaka/go-secureboot/pkg/tpm2"
 )
 
 type keyWrapper struct {
@@ -30,7 +30,7 @@ func (k keyWrapper) PublicRSAKey() *rsa.PublicKey {
 func TestCalculateBankData(t *testing.T) {
 	t.Parallel()
 
-	pemKey, err := os.ReadFile("../../testdata/pcr-signing-key.pem")
+	pemKey, err := os.ReadFile("../testdata/pcr-signing-key.pem")
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(pemKey)

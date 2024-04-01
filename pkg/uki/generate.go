@@ -14,15 +14,13 @@ import (
 	talosx509 "github.com/siderolabs/crypto/x509"
 	"github.com/siderolabs/gen/xslices"
 
-	"github.com/siderolabs/talos/internal/pkg/secureboot"
-	"github.com/siderolabs/talos/internal/pkg/secureboot/measure"
-	"github.com/siderolabs/talos/pkg/machinery/constants"
-	"github.com/siderolabs/talos/pkg/machinery/version"
-	"github.com/siderolabs/talos/pkg/splash"
+	"github.com/itxaka/go-secureboot/pkg/constants"
+	"github.com/itxaka/go-secureboot/pkg/measure"
+	"github.com/itxaka/go-secureboot/pkg/secureboot"
 )
 
 func (builder *Builder) generateOSRel() error {
-	osRelease, err := version.OSReleaseFor(version.Name, builder.Version)
+	osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
 	if err != nil {
 		return err
 	}
@@ -80,7 +78,7 @@ func (builder *Builder) generateInitrd() error {
 func (builder *Builder) generateSplash() error {
 	path := filepath.Join(builder.scratchDir, "splash.bmp")
 
-	if err := os.WriteFile(path, splash.GetBootImage(), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
 		return err
 	}
 
@@ -101,13 +99,8 @@ func (builder *Builder) generateUname() error {
 	// do a bit of pre-checks
 	var kernelVersion string
 
-	if builder.Version == version.Tag {
-		// if building from the same version of Talos, use default kernel version
-		kernelVersion = constants.DefaultKernelVersion
-	} else {
-		// otherwise, try to get the kernel version from the kernel image
-		kernelVersion, _ = DiscoverKernelVersion(builder.KernelPath) //nolint:errcheck
-	}
+	// otherwise, try to get the kernel version from the kernel image
+	kernelVersion, _ = DiscoverKernelVersion(builder.KernelPath) //nolint:errcheck
 
 	if kernelVersion == "" {
 		// we haven't got the kernel version, skip the uname section

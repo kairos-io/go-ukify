@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/itxaka/go-secureboot/pkg/constants"
 )
 
 // PCRData is the data structure for PCR signature json.
