@@ -8,10 +8,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"log/slog"
 	"os"
 	"path/filepath"
 
-	talosx509 "github.com/siderolabs/crypto/x509"
 	"github.com/siderolabs/gen/xslices"
 
 	"github.com/itxaka/go-secureboot/pkg/constants"
@@ -20,15 +20,21 @@ import (
 )
 
 func (builder *Builder) generateOSRel() error {
-	osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
-	if err != nil {
-		return err
-	}
-
-	path := filepath.Join(builder.scratchDir, "os-release")
-
-	if err = os.WriteFile(path, osRelease, 0o600); err != nil {
-		return err
+	var path string
+	if builder.OsRelease != "" {
+		slog.Info("Using existing os-release")
+		path = builder.OsRelease
+	} else {
+		// Generate a simplified os-release
+		slog.Info("Generating a new os-release")
+		osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
+		if err != nil {
+			return err
+		}
+		path = filepath.Join(builder.scratchDir, "os-release")
+		if err = os.WriteFile(path, osRelease, 0o600); err != nil {
+			return err
+		}
 	}
 
 	builder.sections = append(builder.sections,
@@ -155,7 +161,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 	}
 
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  talosx509.PEMTypeRSAPublic,
+		Type:  constants.PEMTypeRSAPublic,
 		Bytes: publicKeyBytes,
 	})
 

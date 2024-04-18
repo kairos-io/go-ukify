@@ -27,7 +27,7 @@ type RSAKey interface {
 
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
-// This mimics the process happening happening in the TPM when the UKI is being loaded.
+// This mimics the process happening in the TPM when the UKI is being loaded.
 func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[secureboot.Section]string, rsaKey RSAKey) ([]tpm2internal.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))

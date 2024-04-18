@@ -8,6 +8,7 @@ package uki
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/itxaka/go-secureboot/pkg/measure"
@@ -48,6 +49,8 @@ type Builder struct {
 	InitrdPath string
 	// Kernel cmdline.
 	Cmdline string
+	// Os-release file
+	OsRelease string
 	// SecureBoot certificate and signer.
 	SecureBootSigner pesign.CertificateSigner
 	// PCR signer.
@@ -74,10 +77,10 @@ type Builder struct {
 //   - build ephemeral sections (uname, os-release), and other proposed sections
 //   - measure sections, generate signature, and append to the list of sections
 //   - assemble the final UKI file starting from sd-stub and appending generated section.
-func (builder *Builder) Build(printf func(string, ...any)) error {
+func (builder *Builder) Build() error {
 	var err error
 
-	builder.scratchDir, err = os.MkdirTemp("", "talos-uki")
+	builder.scratchDir, err = os.MkdirTemp("", "ukify")
 	if err != nil {
 		return err
 	}
@@ -88,7 +91,7 @@ func (builder *Builder) Build(printf func(string, ...any)) error {
 		}
 	}()
 
-	printf("signing systemd-boot")
+	slog.Info("Signing systemd-boot")
 
 	builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
 	if err != nil {
@@ -100,7 +103,7 @@ func (builder *Builder) Build(printf func(string, ...any)) error {
 		return fmt.Errorf("error signing sd-boot: %w", err)
 	}
 
-	printf("generating UKI sections")
+	slog.Info("Generating UKI sections")
 
 	// generate and build list of all sections
 	for _, generateSection := range []func() error{
@@ -121,14 +124,14 @@ func (builder *Builder) Build(printf func(string, ...any)) error {
 		}
 	}
 
-	printf("assembling UKI")
+	slog.Info("Assembling UKI")
 
 	// assemble the final UKI file
 	if err = builder.assemble(); err != nil {
 		return fmt.Errorf("error assembling UKI: %w", err)
 	}
 
-	printf("signing UKI")
+	slog.Info("Signing UKI")
 
 	// sign the UKI file
 	return builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath)

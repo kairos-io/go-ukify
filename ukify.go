@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/itxaka/go-secureboot/pkg/pesign"
 	"github.com/itxaka/go-secureboot/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log/slog"
 	"os"
 )
 
@@ -25,29 +27,56 @@ func main() {
 			if viper.GetString("initrd-path") == "" {
 				return fmt.Errorf("initrd-path is required")
 			}
+			if viper.GetString("pcr-key") == "" {
+				return fmt.Errorf("pcr-key is required")
+			}
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Convert the pr
-			builder := &uki.Builder{}
-			err := builder.Build(func(s string, a ...any) {
-				fmt.Println(s, a)
-			})
-			return err
+			slog.SetLogLoggerLevel(slog.LevelDebug)
+			signer, err := pesign.NewPCRSigner(viper.GetString("pcr-key"))
+			if err != nil {
+				return err
+			}
+			sbSigner, err := pesign.NewSecureBootSigner(viper.GetString("sb-cert"), viper.GetString("sb-key"))
+			if err != nil {
+				return err
+			}
+			builder := &uki.Builder{
+				Arch:             viper.GetString("arch"),
+				Version:          viper.GetString("version"),
+				SdStubPath:       viper.GetString("sd-stub-path"),
+				SdBootPath:       viper.GetString("sd-boot-path"),
+				KernelPath:       viper.GetString("kernel-path"),
+				InitrdPath:       viper.GetString("initrd-path"),
+				Cmdline:          viper.GetString("cmdline"),
+				OutSdBootPath:    viper.GetString("output-sdboot"),
+				OutUKIPath:       viper.GetString("output-uki"),
+				PCRSigner:        signer,
+				SecureBootSigner: sbSigner,
+			}
+
+			if viper.GetString("os-release") != "" {
+				builder.OsRelease = viper.GetString("os-release")
+			}
+
+			return builder.Build()
 		},
 	}
 
-	c.Flags().String("arch", "", "Arch of the UKI file.")
-	c.Flags().String("version", "", "Version of Talos.")
-	c.Flags().String("sd-stub-path", "", "Path to the sd-stub.")
-	c.Flags().String("sd-boot-path", "", "Path to the sd-boot.")
-	c.Flags().String("kernel-path", "", "Path to the kernel image.")
-	c.Flags().String("initrd-path", "", "Path to the initrd image.")
-	c.Flags().String("cmdline", "", "Kernel cmdline.")
-	c.Flags().String("secure-boot-cert", "", "SecureBoot certificate to sign efi files with.")
-	c.Flags().String("pcr-cert", "", "PCR signer.")
-	c.Flags().String("out-sd-boot-path", "", "Path to the signed sd-boot.")
-	c.Flags().String("out-uki-path", "", "Path to the output UKI file.")
+	c.Flags().StringP("arch", "a", "", "Arch of the UKI file.")
+	c.Flags().String("version", "", "Version.")
+	c.Flags().StringP("sd-stub-path", "s", "", "Path to the sd-stub.")
+	c.Flags().StringP("sd-boot-path", "b", "", "Path to the sd-boot.")
+	c.Flags().StringP("kernel-path", "k", "", "Path to the kernel image.")
+	c.Flags().StringP("initrd-path", "i", "", "Path to the initrd image.")
+	c.Flags().StringP("cmdline", "c", "", "Kernel cmdline.")
+	c.Flags().StringP("os-release", "o", "", "os-release file.")
+	c.Flags().String("sb-cert", "", "SecureBoot certificate to sign efi files with.")
+	c.Flags().String("sb-key", "", "SecureBoot certificate to sign efi files with.")
+	c.Flags().StringP("pcr-key", "p", "", "PCR key.")
+	c.Flags().StringP("output-sdboot", "", "sdboot.signed.efi", "sdboot output.")
+	c.Flags().StringP("output-uki", "", "uki.signed.efi", "uki artifact output.")
 
 	err := viper.BindPFlags(c.Flags())
 	if err != nil {

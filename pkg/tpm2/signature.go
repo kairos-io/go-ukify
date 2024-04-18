@@ -5,14 +5,6 @@
 // Package tpm2 provides TPM2.0 related functionality helpers.
 package tpm2
 
-import (
-	"encoding/json"
-	"fmt"
-	"os"
-
-	"github.com/itxaka/go-secureboot/pkg/constants"
-)
-
 // PCRData is the data structure for PCR signature json.
 type PCRData struct {
 	SHA1   []BankData `json:"sha1,omitempty"`
@@ -31,20 +23,4 @@ type BankData struct {
 	Pol string `json:"pol"`
 	// Signature of the policy digest in base64
 	Sig string `json:"sig"`
-}
-
-// ParsePCRSignature parses the PCR signature json file.
-func ParsePCRSignature() (*PCRData, error) {
-	pcrSignature, err := os.ReadFile(constants.PCRSignatureJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read pcr signature: %v", err)
-	}
-
-	pcrData := &PCRData{}
-
-	if err = json.Unmarshal(pcrSignature, pcrData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal pcr signature: %v", err)
-	}
-
-	return pcrData, nil
 }
