@@ -41,8 +41,6 @@ github.com/sagikazarmark/locafero v0.4.0 h1:HApY1R9zGo4DBgr7dqsTH/JJxLTTsOt7u6ke
 github.com/sagikazarmark/locafero v0.4.0/go.mod h1:Pe1W6UlPYUk/+wc/6KFhbORCfqzgYEpgQ3O5fPuL3H4=
 github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6gto+ugjYE=
 github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
-github.com/siderolabs/crypto v0.4.4 h1:Q6EDBMR2Ub2oAZW5Xl8lrKB27bM3Sn8Gkfw3rngco5U=
-github.com/siderolabs/crypto v0.4.4/go.mod h1:hsR3tJ3aaeuhCChsLF4dBd9vlJVPvmhg4vvx2ez4aD4=
 github.com/siderolabs/gen v0.4.8 h1:VNpbmDLhkXp7qcSEkKk1Ee7vU2afs3xvHrWLGR2UuiY=
 github.com/siderolabs/gen v0.4.8/go.mod h1:7ROKVHHB68R3Amrd4a1ZXz/oMrXWF3Mg3lSEgnkJY5c=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
