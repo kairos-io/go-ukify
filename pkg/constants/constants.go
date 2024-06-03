@@ -6,26 +6,43 @@ import (
 	"text/template"
 )
 
+// Section is a name of a PE file section (UEFI binary).
+type Section string
+
+// Phase is the phase value extended to the PCR.
+type Phase string
+
 const (
-	// SignatureKeyAsset defines a well known name for the signature key filename used for auto-enrolling.
-	SignatureKeyAsset = "db.auth"
-
-	// PlatformKeyAsset defines a well known name for the platform key filename used for auto-enrolling.
-	PlatformKeyAsset = "PK.auth"
-
-	// KeyExchangeKeyAsset defines a well known name for the key exchange key filename used for auto-enrolling.
-	KeyExchangeKeyAsset = "KEK.auth"
-
 	PEMTypeRSAPublic = "PUBLIC KEY"
-)
-
-const OSReleaseTemplate = `NAME="{{ .Name }}"
+	Name             = "Kairos"
+	// UKIPCR is the PCR number where sections except `.pcrsig` are measured.
+	UKIPCR            = 11
+	OSReleaseTemplate = `NAME="{{ .Name }}"
 ID={{ .ID }}
 VERSION_ID={{ .Version }}
 PRETTY_NAME="{{ .Name }} ({{ .Version }})"
+)
 `
+	// EnterInitrd is the phase value extended to the PCR during the initrd.
+	EnterInitrd Phase = "enter-initrd"
+	// LeaveInitrd is the phase value extended to the PCR just before switching to machined.
+	LeaveInitrd Phase = "leave-initrd"
+	// EnterMachined is the phase value extended to the PCR before starting machined.
+	// There should be only a signed signature for the enter-machined phase.
+	EnterMachined Phase = "enter-machined"
 
-const Name = "NoName"
+	// List of well-known section names.
+	Linux   Section = ".linux"
+	OSRel   Section = ".osrel"
+	CMDLine Section = ".cmdline"
+	Initrd  Section = ".initrd"
+	Splash  Section = ".splash"
+	DTB     Section = ".dtb"
+	Uname   Section = ".uname"
+	SBAT    Section = ".sbat"
+	PCRSig  Section = ".pcrsig"
+	PCRPKey Section = ".pcrpkey"
+)
 
 // OSReleaseFor returns the contents of /etc/os-release for a given name and version.
 func OSReleaseFor(name, version string) ([]byte, error) {

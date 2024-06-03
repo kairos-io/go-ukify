@@ -16,7 +16,6 @@ import (
 
 	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/measure"
-	"github.com/itxaka/go-ukify/pkg/secureboot"
 )
 
 func (builder *Builder) generateOSRel() error {
@@ -39,7 +38,7 @@ func (builder *Builder) generateOSRel() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.OSRel,
+			Name:    constants.OSRel,
 			Path:    path,
 			Measure: true,
 			Append:  true,
@@ -58,7 +57,7 @@ func (builder *Builder) generateCmdline() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.CMDLine,
+			Name:    constants.CMDLine,
 			Path:    path,
 			Measure: true,
 			Append:  true,
@@ -71,7 +70,7 @@ func (builder *Builder) generateCmdline() error {
 func (builder *Builder) generateInitrd() error {
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.Initrd,
+			Name:    constants.Initrd,
 			Path:    builder.InitrdPath,
 			Measure: true,
 			Append:  true,
@@ -90,7 +89,7 @@ func (builder *Builder) generateSplash() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.Splash,
+			Name:    constants.Splash,
 			Path:    path,
 			Measure: true,
 			Append:  true,
@@ -108,6 +107,7 @@ func (builder *Builder) generateUname() error {
 	// otherwise, try to get the kernel version from the kernel image
 	kernelVersion, _ = DiscoverKernelVersion(builder.KernelPath) //nolint:errcheck
 
+	slog.Info("Kernel", slog.String("version", kernelVersion))
 	if kernelVersion == "" {
 		// we haven't got the kernel version, skip the uname section
 		return nil
@@ -121,7 +121,7 @@ func (builder *Builder) generateUname() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.Uname,
+			Name:    constants.Uname,
 			Path:    path,
 			Measure: true,
 			Append:  true,
@@ -145,7 +145,7 @@ func (builder *Builder) generateSBAT() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.SBAT,
+			Name:    constants.SBAT,
 			Path:    path,
 			Measure: true,
 		},
@@ -173,7 +173,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.PCRPKey,
+			Name:    constants.PCRPKey,
 			Path:    path,
 			Append:  true,
 			Measure: true,
@@ -192,7 +192,7 @@ func (builder *Builder) generateKernel() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:    secureboot.Linux,
+			Name:    constants.Linux,
 			Path:    path,
 			Append:  true,
 			Measure: true,
@@ -209,7 +209,7 @@ func (builder *Builder) generatePCRSig() error {
 				return s.Measure
 			},
 		),
-		func(s section) (secureboot.Section, string) {
+		func(s section) (constants.Section, string) {
 			return s.Name, s.Path
 		})
 
@@ -231,7 +231,7 @@ func (builder *Builder) generatePCRSig() error {
 
 	builder.sections = append(builder.sections,
 		section{
-			Name:   secureboot.PCRSig,
+			Name:   constants.PCRSig,
 			Path:   path,
 			Append: true,
 		},

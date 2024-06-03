@@ -11,15 +11,15 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/measure"
 	"github.com/itxaka/go-ukify/pkg/pesign"
-	"github.com/itxaka/go-ukify/pkg/secureboot"
 )
 
 // section is a UKI file section.
 type section struct {
 	// Section name.
-	Name secureboot.Section
+	Name constants.Section
 	// Path to the contents of the section.
 	Path string
 	// Should the section be measured to the TPM?

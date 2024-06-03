@@ -10,16 +10,16 @@ package measure
 import (
 	"crypto"
 	"crypto/rsa"
+	"github.com/itxaka/go-ukify/pkg/constants"
 
 	"github.com/google/go-tpm/tpm2"
 
 	"github.com/itxaka/go-ukify/pkg/measure/pcr"
-	"github.com/itxaka/go-ukify/pkg/secureboot"
 	tpm2internal "github.com/itxaka/go-ukify/pkg/tpm2"
 )
 
 // SectionsData holds a map of Section to file path to the corresponding section.
-type SectionsData map[secureboot.Section]string
+type SectionsData map[constants.Section]string
 
 // RSAKey is the input for the CalculateBankData function.
 type RSAKey interface {
@@ -48,7 +48,7 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey) (*tpm2internal.
 			bankDataSetter: &data.SHA512,
 		},
 	} {
-		bankData, err := pcr.CalculateBankData(secureboot.UKIPCR, algo.alg, sectionsData, rsaKey)
+		bankData, err := pcr.CalculateBankData(constants.UKIPCR, algo.alg, sectionsData, rsaKey)
 		if err != nil {
 			return nil, err
 		}

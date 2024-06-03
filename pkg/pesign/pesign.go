@@ -12,13 +12,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/itxaka/go-ukify/pkg/measure"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/foxboron/go-uefi/efi"
+	"github.com/itxaka/go-ukify/pkg/measure"
 )
 
 // Signer sigs PE (portable executable) files.

@@ -7,8 +7,7 @@ package uki
 import (
 	"debug/pe"
 	"errors"
-
-	"github.com/itxaka/go-ukify/pkg/secureboot"
+	"github.com/itxaka/go-ukify/pkg/constants"
 )
 
 // GetSBAT returns the SBAT section from the PE file.
@@ -21,7 +20,7 @@ func GetSBAT(path string) ([]byte, error) {
 	defer pefile.Close() //nolint:errcheck
 
 	for _, section := range pefile.Sections {
-		if section.Name == string(secureboot.SBAT) {
+		if section.Name == string(constants.SBAT) {
 			data, err := section.Data()
 			if err != nil {
 				return nil, err

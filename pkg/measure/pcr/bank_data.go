@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"github.com/itxaka/go-ukify/pkg/constants"
 	"os"
 
 	"github.com/google/go-tpm/tpm2"
@@ -28,7 +29,7 @@ type RSAKey interface {
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
-func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[secureboot.Section]string, rsaKey RSAKey) ([]tpm2internal.BankData, error) {
+func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey RSAKey) ([]tpm2internal.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
 
@@ -37,7 +38,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[secureb
 		return nil, err
 	}
 
-	pcrSelector, err := tpm2internal.CreateSelector([]int{secureboot.UKIPCR})
+	pcrSelector, err := tpm2internal.CreateSelector([]int{constants.UKIPCR})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
 	}
