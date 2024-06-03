@@ -213,7 +213,7 @@ func (builder *Builder) generatePCRSig() error {
 			return s.Name, s.Path
 		})
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner)
+	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR)
 	if err != nil {
 		return err
 	}

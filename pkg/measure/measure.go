@@ -10,6 +10,7 @@ package measure
 import (
 	"crypto"
 	"crypto/rsa"
+	"log/slog"
 
 	"github.com/google/go-tpm/tpm2"
 	"github.com/itxaka/go-ukify/pkg/constants"
@@ -27,7 +28,40 @@ type RSAKey interface {
 }
 
 // GenerateSignedPCR generates the PCR signed data for a given set of UKI file sections.
-func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey) (*types.PCRData, error) {
+func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey, PCR int) (*types.PCRData, error) {
+	data := &types.PCRData{}
+	slog.Debug("Generating PCR data", "sections", sectionsData)
+
+	for _, algo := range []struct {
+		alg            tpm2.TPMAlgID
+		bankDataSetter *[]types.BankData
+	}{
+		{
+			alg:            tpm2.TPMAlgSHA256,
+			bankDataSetter: &data.SHA256,
+		},
+		{
+			alg:            tpm2.TPMAlgSHA384,
+			bankDataSetter: &data.SHA384,
+		},
+		{
+			alg:            tpm2.TPMAlgSHA512,
+			bankDataSetter: &data.SHA512,
+		},
+	} {
+		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, rsaKey)
+		if err != nil {
+			return nil, err
+		}
+
+		*algo.bankDataSetter = bankData
+	}
+
+	return data, nil
+}
+
+// GenerateSignedPCRForBytes generates the PCR signed data for a given file
+func GenerateSignedPCRForBytes(file string, rsaKey RSAKey, PCR int) (*types.PCRData, error) {
 	data := &types.PCRData{}
 
 	for _, algo := range []struct {
@@ -47,7 +81,7 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey) (*types.PCRData
 			bankDataSetter: &data.SHA512,
 		},
 	} {
-		bankData, err := pcr.CalculateBankData(constants.UKIPCR, algo.alg, sectionsData, rsaKey)
+		bankData, err := pcr.CalculateBankDataForFile(PCR, algo.alg, file, rsaKey)
 		if err != nil {
 			return nil, err
 		}

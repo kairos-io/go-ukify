@@ -98,6 +98,62 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 	return banks, nil
 }
 
+func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsaKey RSAKey) ([]types.BankData, error) {
+	// get fingerprint of public key
+	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
+
+	hashAlg, err := alg.Hash()
+	if err != nil {
+		return nil, err
+	}
+
+	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
+	}
+
+	pcrSelection := tpm2.TPMLPCRSelection{
+		PCRSelections: []tpm2.TPMSPCRSelection{
+			{
+				Hash:      alg,
+				PCRSelect: pcrSelector,
+			},
+		},
+	}
+
+	hashData := NewDigest(hashAlg)
+
+	sectionData, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	hashData.Extend(sectionData)
+
+	banks := make([]types.BankData, 0)
+
+	hash := hashData.Hash()
+
+	policyPCR, err := CalculatePolicy(hash, pcrSelection)
+	if err != nil {
+		return nil, err
+	}
+
+	sigData, err := Sign(policyPCR, hashAlg, rsaKey)
+	if err != nil {
+		return nil, err
+	}
+
+	banks = append(banks, types.BankData{
+		PCRs: []int{pcrNumber},
+		PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
+		Sig:  sigData.SignatureBase64,
+		Pol:  sigData.Digest,
+	})
+
+	return banks, nil
+}
+
 // CreateSelector converts PCR  numbers into a bitmask.
 func CreateSelector(pcrs []int) ([]byte, error) {
 	const sizeOfPCRSelect = 3
