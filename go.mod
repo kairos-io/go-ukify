@@ -1,11 +1,10 @@
-module github.com/itxaka/go-secureboot
+module github.com/itxaka/go-ukify
 
 go 1.22.1
 
 require (
 	github.com/foxboron/go-uefi v0.0.0-20240128152106-48be911532c2
 	github.com/google/go-tpm v0.9.1-0.20230914180155-ee6cbcd136f8
-	github.com/google/uuid v1.6.0
 	github.com/siderolabs/gen v0.4.8
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2

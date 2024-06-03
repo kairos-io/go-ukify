@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/itxaka/go-secureboot/pkg/pesign"
-	"github.com/itxaka/go-secureboot/pkg/uki"
+	"github.com/itxaka/go-ukify/pkg/pesign"
+	"github.com/itxaka/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log/slog"

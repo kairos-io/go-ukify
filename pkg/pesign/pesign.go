@@ -12,7 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/itxaka/go-secureboot/pkg/measure"
+	"github.com/itxaka/go-ukify/pkg/measure"
 	"io"
 	"log"
 	"log/slog"

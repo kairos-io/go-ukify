@@ -14,9 +14,9 @@ import (
 
 	"github.com/siderolabs/gen/xslices"
 
-	"github.com/itxaka/go-secureboot/pkg/constants"
-	"github.com/itxaka/go-secureboot/pkg/measure"
-	"github.com/itxaka/go-secureboot/pkg/secureboot"
+	"github.com/itxaka/go-ukify/pkg/constants"
+	"github.com/itxaka/go-ukify/pkg/measure"
+	"github.com/itxaka/go-ukify/pkg/secureboot"
 )
 
 func (builder *Builder) generateOSRel() error {

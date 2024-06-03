@@ -11,9 +11,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/itxaka/go-secureboot/pkg/measure"
-	"github.com/itxaka/go-secureboot/pkg/pesign"
-	"github.com/itxaka/go-secureboot/pkg/secureboot"
+	"github.com/itxaka/go-ukify/pkg/measure"
+	"github.com/itxaka/go-ukify/pkg/pesign"
+	"github.com/itxaka/go-ukify/pkg/secureboot"
 )
 
 // section is a UKI file section.
