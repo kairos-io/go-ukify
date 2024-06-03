@@ -53,13 +53,14 @@ func main() {
 			}
 			output := viper.GetString("output")
 			key := viper.GetString("pcr-key")
-			slog.Info("Starting to measure", "file", args[0], "output", output, "pcr-key", key)
+			pcr := viper.GetInt("pcr")
+			slog.Info("Starting to measure", "file", args[0], "output", output, "pcr-key", key, "pcr", pcr)
 			signer, err := pesign.NewPCRSigner(key)
 			if err != nil {
 				return err
 			}
 
-			measurements, err := measure.GenerateSignedPCRForBytes(args[0], signer, 13)
+			measurements, err := measure.GenerateSignedPCRForBytes(args[0], signer, pcr)
 			if err != nil {
 				slog.Info("Failed to generate signed PCR")
 				return err
@@ -74,16 +75,18 @@ func main() {
 			if err != nil {
 				return err
 			}
-			slog.Info("Finished measuring", "file", args[0], "output", output, "pcr-key", key)
+			slog.Info("Finished measuring", "file", args[0], "output", output, "pcr-key", key, "pcr", pcr)
 			return nil
 		},
 	}
 
 	c.Flags().StringP("pcr-key", "p", "", "PCR key.")
+	c.Flags().Int("pcr", 0, "TPM PCR to measure against.")
 	c.Flags().StringP("output", "o", "measurements.json", "Output file for measurements in json format.")
 	c.Flags().String("log-level", "info", "Log level.")
 	// Set flag as required
 	err := c.MarkFlagRequired("pcr-key")
+	err = c.MarkFlagRequired("pcr")
 
 	err = viper.BindPFlags(c.Flags())
 	if err != nil {
