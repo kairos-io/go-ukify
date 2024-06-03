@@ -25,11 +25,12 @@ PRETTY_NAME="{{ .Name }} ({{ .Version }})"
 `
 	// EnterInitrd is the phase value extended to the PCR during the initrd.
 	EnterInitrd Phase = "enter-initrd"
-	// LeaveInitrd is the phase value extended to the PCR just before switching to machined.
+	// LeaveInitrd is the phase value extended to the PCR just before switching to systemd.
 	LeaveInitrd Phase = "leave-initrd"
-	// EnterMachined is the phase value extended to the PCR before starting machined.
-	// There should be only a signed signature for the enter-machined phase.
-	EnterMachined Phase = "enter-machined"
+	// SysInit is the phase value extended to the PCR during the sysinit phase.
+	SysInit Phase = "sysinit"
+	// Ready is the phase value extended to the PCR during the ready phase.
+	Ready Phase = "ready"
 
 	// List of well-known section names.
 	Linux   Section = ".linux"
@@ -43,6 +44,24 @@ PRETTY_NAME="{{ .Name }} ({{ .Version }})"
 	PCRSig  Section = ".pcrsig"
 	PCRPKey Section = ".pcrpkey"
 )
+
+// OrderedSections returns the sections that are measured into PCR.
+//
+// Derived from https://github.com/systemd/systemd/blob/main/src/fundamental/tpm-pcr.h#L23-L36
+// .pcrsig section is omitted here since that's what we are calulating here.
+func OrderedSections() []Section {
+	// DO NOT REARRANGE
+	return []Section{
+		Linux,
+		OSRel,
+		CMDLine,
+		Initrd,
+		Splash,
+		DTB,
+		Uname,
+		SBAT,
+		PCRPKey}
+}
 
 // OSReleaseFor returns the contents of /etc/os-release for a given name and version.
 func OSReleaseFor(name, version string) ([]byte, error) {

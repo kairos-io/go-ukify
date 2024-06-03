@@ -10,12 +10,11 @@ package measure
 import (
 	"crypto"
 	"crypto/rsa"
-	"github.com/itxaka/go-ukify/pkg/constants"
 
 	"github.com/google/go-tpm/tpm2"
-
+	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/measure/pcr"
-	tpm2internal "github.com/itxaka/go-ukify/pkg/tpm2"
+	"github.com/itxaka/go-ukify/pkg/types"
 )
 
 // SectionsData holds a map of Section to file path to the corresponding section.
@@ -28,12 +27,12 @@ type RSAKey interface {
 }
 
 // GenerateSignedPCR generates the PCR signed data for a given set of UKI file sections.
-func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey) (*tpm2internal.PCRData, error) {
-	data := &tpm2internal.PCRData{}
+func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey) (*types.PCRData, error) {
+	data := &types.PCRData{}
 
 	for _, algo := range []struct {
 		alg            tpm2.TPMAlgID
-		bankDataSetter *[]tpm2internal.BankData
+		bankDataSetter *[]types.BankData
 	}{
 		{
 			alg:            tpm2.TPMAlgSHA256,

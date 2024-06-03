@@ -12,12 +12,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/itxaka/go-ukify/pkg/constants"
+	"github.com/itxaka/go-ukify/pkg/types"
 	"os"
 
 	"github.com/google/go-tpm/tpm2"
-
-	"github.com/itxaka/go-ukify/pkg/secureboot"
-	tpm2internal "github.com/itxaka/go-ukify/pkg/tpm2"
 )
 
 // RSAKey is the input for the CalculateBankData function.
@@ -29,7 +27,7 @@ type RSAKey interface {
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
-func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey RSAKey) ([]tpm2internal.BankData, error) {
+func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey RSAKey) ([]types.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
 
@@ -38,7 +36,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		return nil, err
 	}
 
-	pcrSelector, err := tpm2internal.CreateSelector([]int{constants.UKIPCR})
+	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
 	}
@@ -54,7 +52,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 	hashData := NewDigest(hashAlg)
 
-	for _, section := range secureboot.OrderedSections() {
+	for _, section := range constants.OrderedSections() {
 		if file := sectionData[section]; file != "" {
 			hashData.Extend(append([]byte(section), 0))
 
@@ -67,9 +65,9 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		}
 	}
 
-	banks := make([]tpm2internal.BankData, 0)
+	banks := make([]types.BankData, 0)
 
-	for _, phaseInfo := range secureboot.OrderedPhases() {
+	for _, phaseInfo := range types.OrderedPhases() {
 		// extend always, but only calculate signature if requested
 		hashData.Extend([]byte(phaseInfo.Phase))
 
@@ -79,7 +77,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 		hash := hashData.Hash()
 
-		policyPCR, err := tpm2internal.CalculatePolicy(hash, pcrSelection)
+		policyPCR, err := CalculatePolicy(hash, pcrSelection)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +87,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 			return nil, err
 		}
 
-		banks = append(banks, tpm2internal.BankData{
+		banks = append(banks, types.BankData{
 			PCRs: []int{pcrNumber},
 			PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
 			Sig:  sigData.SignatureBase64,
@@ -98,4 +96,44 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 	}
 
 	return banks, nil
+}
+
+// CreateSelector converts PCR  numbers into a bitmask.
+func CreateSelector(pcrs []int) ([]byte, error) {
+	const sizeOfPCRSelect = 3
+
+	mask := make([]byte, sizeOfPCRSelect)
+
+	for _, n := range pcrs {
+		if n >= 8*sizeOfPCRSelect {
+			return nil, fmt.Errorf("PCR index %d is out of range (exceeds maximum value %d)", n, 8*sizeOfPCRSelect-1)
+		}
+
+		mask[n>>3] |= 1 << (n & 0x7)
+	}
+
+	return mask, nil
+}
+
+// CalculatePolicy calculates the policy hash for a given PCR value and PCR selection.
+func CalculatePolicy(pcrValue []byte, pcrSelection tpm2.TPMLPCRSelection) ([]byte, error) {
+	calculator, err := tpm2.NewPolicyCalculator(tpm2.TPMAlgSHA256)
+	if err != nil {
+		return nil, err
+	}
+
+	pcrHash := sha256.Sum256(pcrValue)
+
+	policy := tpm2.PolicyPCR{
+		PcrDigest: tpm2.TPM2BDigest{
+			Buffer: pcrHash[:],
+		},
+		Pcrs: pcrSelection,
+	}
+
+	if err := policy.Update(calculator); err != nil {
+		return nil, err
+	}
+
+	return calculator.Hash().Digest, nil
 }
