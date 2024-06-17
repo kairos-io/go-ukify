@@ -107,7 +107,7 @@ func (builder *Builder) Build() error {
 		}
 
 		// sign sd-boot
-		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
+		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath, builder.Logger); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
 		slog.Info("Signed systemd-boot at %s", builder.OutSdBootPath)
@@ -146,5 +146,5 @@ func (builder *Builder) Build() error {
 	builder.Logger.Info("Signing UKI")
 
 	// sign the UKI file
-	return builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath)
+	return builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
 }
