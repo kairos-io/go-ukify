@@ -40,8 +40,8 @@ func NewSigner(provider CertificateSigner) (*Signer, error) {
 }
 
 // Sign signs the input file and writes the output to the output file.
-func (s *Signer) Sign(input, output string) error {
-	slog.Debug("Signing file", "input", input, "output", output)
+func (s *Signer) Sign(input, output string, logger *slog.Logger) error {
+	logger.Debug("Signing file", "input", input, "output", output)
 	unsigned, err := os.ReadFile(input)
 	if err != nil {
 		log.Fatalf("Failed to open %s", input)

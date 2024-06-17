@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -19,13 +18,14 @@ import (
 )
 
 func (builder *Builder) generateOSRel() error {
+	builder.Logger.Info("Generation os-release")
 	var path string
 	if builder.OsRelease != "" {
-		slog.Info("Using existing os-release")
+		builder.Logger.Info("Using existing os-release at %s", builder.OsRelease)
 		path = builder.OsRelease
 	} else {
 		// Generate a simplified os-release
-		slog.Info("Generating a new os-release")
+		builder.Logger.Info("Generating a new os-release")
 		osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
 		if err != nil {
 			return err
@@ -49,6 +49,7 @@ func (builder *Builder) generateOSRel() error {
 }
 
 func (builder *Builder) generateCmdline() error {
+	builder.Logger.Info("Using cmdline: %s", builder.Cmdline)
 	path := filepath.Join(builder.scratchDir, "cmdline")
 
 	if err := os.WriteFile(path, []byte(builder.Cmdline), 0o600); err != nil {
@@ -68,6 +69,7 @@ func (builder *Builder) generateCmdline() error {
 }
 
 func (builder *Builder) generateInitrd() error {
+	builder.Logger.Info("Using initrd at %s", builder.InitrdPath)
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Initrd,
@@ -100,6 +102,7 @@ func (builder *Builder) generateSplash() error {
 }
 
 func (builder *Builder) generateUname() error {
+	builder.Logger.Info("Getting kernel version")
 	// it is not always possible to get the kernel version from the kernel image, so we
 	// do a bit of pre-checks
 	var kernelVersion string
@@ -107,10 +110,12 @@ func (builder *Builder) generateUname() error {
 	// otherwise, try to get the kernel version from the kernel image
 	kernelVersion, _ = DiscoverKernelVersion(builder.KernelPath) //nolint:errcheck
 
-	slog.Info("Kernel", slog.String("version", kernelVersion))
 	if kernelVersion == "" {
 		// we haven't got the kernel version, skip the uname section
+		builder.Logger.Info("We could not infer kernel version from %s", builder.KernelPath)
 		return nil
+	} else {
+		builder.Logger.Info("Using kernel version %s at %s", kernelVersion, builder.KernelPath)
 	}
 
 	path := filepath.Join(builder.scratchDir, "uname")
@@ -132,10 +137,13 @@ func (builder *Builder) generateUname() error {
 }
 
 func (builder *Builder) generateSBAT() error {
+	builder.Logger.Info("Generating SBAT for %s", builder.SdStubPath)
 	sbat, err := GetSBAT(builder.SdStubPath)
 	if err != nil {
 		return err
 	}
+
+	builder.Logger.Debug("Generated SBAT %s for %s", sbat, builder.SdStubPath)
 
 	path := filepath.Join(builder.scratchDir, "sbat")
 
@@ -155,6 +163,7 @@ func (builder *Builder) generateSBAT() error {
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
+	builder.Logger.Info("Generating Public PCR key")
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(builder.PCRSigner.PublicRSAKey())
 	if err != nil {
 		return err
@@ -184,9 +193,10 @@ func (builder *Builder) generatePCRPublicKey() error {
 }
 
 func (builder *Builder) generateKernel() error {
+	builder.Logger.Info("Signing kernel")
 	path := filepath.Join(builder.scratchDir, "kernel")
 
-	if err := builder.peSigner.Sign(builder.KernelPath, path); err != nil {
+	if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
 		return err
 	}
 
@@ -203,6 +213,8 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
+	builder.Logger.Info("Generating PCR measurements")
+	builder.Logger.Debug("Using PCR %d", constants.UKIPCR)
 	sectionsData := xslices.ToMap(
 		xslices.Filter(builder.sections,
 			func(s section) bool {
@@ -213,7 +225,7 @@ func (builder *Builder) generatePCRSig() error {
 			return s.Name, s.Path
 		})
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR)
+	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
 	if err != nil {
 		return err
 	}

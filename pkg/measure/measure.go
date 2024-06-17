@@ -28,9 +28,9 @@ type RSAKey interface {
 }
 
 // GenerateSignedPCR generates the PCR signed data for a given set of UKI file sections.
-func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey, PCR int) (*types.PCRData, error) {
+func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey, PCR int, logger *slog.Logger) (*types.PCRData, error) {
 	data := &types.PCRData{}
-	slog.Debug("Generating PCR data", "sections", sectionsData)
+	logger.Debug("Generating PCR data", "sections", sectionsData)
 
 	for _, algo := range []struct {
 		alg            tpm2.TPMAlgID

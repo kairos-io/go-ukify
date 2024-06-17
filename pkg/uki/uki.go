@@ -63,6 +63,9 @@ type Builder struct {
 	// Path to the output UKI file.
 	OutUKIPath string
 
+	// Logger
+	Logger *slog.Logger
+
 	// fields initialized during build
 	sections        []section
 	scratchDir      string
@@ -80,6 +83,10 @@ type Builder struct {
 func (builder *Builder) Build() error {
 	var err error
 
+	if builder.Logger == nil {
+		builder.Logger = slog.Default()
+	}
+
 	builder.scratchDir, err = os.MkdirTemp("", "ukify")
 	if err != nil {
 		return err
@@ -92,7 +99,7 @@ func (builder *Builder) Build() error {
 	}()
 
 	if builder.SdBootPath != "" {
-		slog.Info("Signing systemd-boot")
+		slog.Info("Signing systemd-boot at %s", builder.SdBootPath)
 
 		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
 		if err != nil {
@@ -103,9 +110,12 @@ func (builder *Builder) Build() error {
 		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
+		slog.Info("Signed systemd-boot at %s", builder.OutSdBootPath)
+	} else {
+		builder.Logger.Info("Not signing systemd-boot")
 	}
 
-	slog.Info("Generating UKI sections")
+	builder.Logger.Info("Generating UKI sections")
 
 	// generate and build list of all sections
 	for _, generateSection := range []func() error{
@@ -126,14 +136,14 @@ func (builder *Builder) Build() error {
 		}
 	}
 
-	slog.Info("Assembling UKI")
+	builder.Logger.Info("Assembling UKI")
 
 	// assemble the final UKI file
 	if err = builder.assemble(); err != nil {
 		return fmt.Errorf("error assembling UKI: %w", err)
 	}
 
-	slog.Info("Signing UKI")
+	builder.Logger.Info("Signing UKI")
 
 	// sign the UKI file
 	return builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath)
