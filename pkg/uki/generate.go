@@ -21,7 +21,7 @@ func (builder *Builder) generateOSRel() error {
 	builder.Logger.Info("Generation os-release")
 	var path string
 	if builder.OsRelease != "" {
-		builder.Logger.Info("Using existing os-release at %s", builder.OsRelease)
+		builder.Logger.Info("Using existing os-release", "path", builder.OsRelease)
 		path = builder.OsRelease
 	} else {
 		// Generate a simplified os-release
@@ -49,7 +49,7 @@ func (builder *Builder) generateOSRel() error {
 }
 
 func (builder *Builder) generateCmdline() error {
-	builder.Logger.Info("Using cmdline: %s", builder.Cmdline)
+	builder.Logger.Info("Using cmdline", "cmdline", builder.Cmdline)
 	path := filepath.Join(builder.scratchDir, "cmdline")
 
 	if err := os.WriteFile(path, []byte(builder.Cmdline), 0o600); err != nil {
@@ -69,7 +69,7 @@ func (builder *Builder) generateCmdline() error {
 }
 
 func (builder *Builder) generateInitrd() error {
-	builder.Logger.Info("Using initrd at %s", builder.InitrdPath)
+	builder.Logger.Info("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Initrd,
@@ -112,10 +112,10 @@ func (builder *Builder) generateUname() error {
 
 	if kernelVersion == "" {
 		// we haven't got the kernel version, skip the uname section
-		builder.Logger.Info("We could not infer kernel version from %s", builder.KernelPath)
+		builder.Logger.Info("We could not infer kernel version", "path", builder.KernelPath)
 		return nil
 	} else {
-		builder.Logger.Info("Using kernel version %s at %s", kernelVersion, builder.KernelPath)
+		builder.Logger.Info("Using kernel version", "version", kernelVersion, "path", builder.KernelPath)
 	}
 
 	path := filepath.Join(builder.scratchDir, "uname")
@@ -137,13 +137,13 @@ func (builder *Builder) generateUname() error {
 }
 
 func (builder *Builder) generateSBAT() error {
-	builder.Logger.Info("Generating SBAT for %s", builder.SdStubPath)
+	builder.Logger.Info("Generating SBAT", "path", builder.SdStubPath)
 	sbat, err := GetSBAT(builder.SdStubPath)
 	if err != nil {
 		return err
 	}
 
-	builder.Logger.Debug("Generated SBAT %s for %s", sbat, builder.SdStubPath)
+	builder.Logger.Debug("Generated SBAT", "sbat", sbat, "path", builder.SdStubPath)
 
 	path := filepath.Join(builder.scratchDir, "sbat")
 
@@ -214,7 +214,7 @@ func (builder *Builder) generateKernel() error {
 
 func (builder *Builder) generatePCRSig() error {
 	builder.Logger.Info("Generating PCR measurements")
-	builder.Logger.Debug("Using PCR %d", constants.UKIPCR)
+	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := xslices.ToMap(
 		xslices.Filter(builder.sections,
 			func(s section) bool {

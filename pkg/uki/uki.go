@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/measure"
@@ -64,7 +65,8 @@ type Builder struct {
 	OutUKIPath string
 
 	// Logger
-	Logger *slog.Logger
+	Logger   *slog.Logger
+	LogLevel string
 
 	// fields initialized during build
 	sections        []section
@@ -86,6 +88,16 @@ func (builder *Builder) Build() error {
 	if builder.Logger == nil {
 		builder.Logger = slog.Default()
 	}
+	switch strings.ToLower(builder.LogLevel) {
+	case "debug":
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	case "warn":
+		slog.SetLogLoggerLevel(slog.LevelWarn)
+	case "error":
+		slog.SetLogLoggerLevel(slog.LevelError)
+	default:
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
 
 	builder.scratchDir, err = os.MkdirTemp("", "ukify")
 	if err != nil {
@@ -99,7 +111,7 @@ func (builder *Builder) Build() error {
 	}()
 
 	if builder.SdBootPath != "" {
-		slog.Info("Signing systemd-boot at %s", builder.SdBootPath)
+		slog.Info("Signing systemd-boot", "path", builder.SdBootPath)
 
 		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
 		if err != nil {
@@ -110,7 +122,7 @@ func (builder *Builder) Build() error {
 		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath, builder.Logger); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
-		slog.Info("Signed systemd-boot at %s", builder.OutSdBootPath)
+		slog.Info("Signed systemd-boot", "path", builder.OutSdBootPath)
 	} else {
 		builder.Logger.Info("Not signing systemd-boot")
 	}
