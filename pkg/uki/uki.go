@@ -91,16 +91,18 @@ func (builder *Builder) Build() error {
 		}
 	}()
 
-	slog.Info("Signing systemd-boot")
+	if builder.SdBootPath != "" {
+		slog.Info("Signing systemd-boot")
 
-	builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
-	if err != nil {
-		return fmt.Errorf("error initializing signer: %w", err)
-	}
+		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
+		if err != nil {
+			return fmt.Errorf("error initializing signer: %w", err)
+		}
 
-	// sign sd-boot
-	if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
-		return fmt.Errorf("error signing sd-boot: %w", err)
+		// sign sd-boot
+		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
+			return fmt.Errorf("error signing sd-boot: %w", err)
+		}
 	}
 
 	slog.Info("Generating UKI sections")
