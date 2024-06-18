@@ -49,31 +49,15 @@ func OrderedPhases() []PhaseInfo {
 			CalculateSignature: true,
 		},
 		{
-			Phase:              constants.EnterLeaveInitrd,
+			Phase:              constants.LeaveInitrd,
 			CalculateSignature: true,
 		},
 		{
-			Phase:              constants.EnterLeaveInitrdSysinit,
+			Phase:              constants.SysInit,
 			CalculateSignature: true,
 		},
 		{
-			Phase:              constants.EnterLeaveInitrdSysinitReady,
-			CalculateSignature: true,
-		},
-		{
-			Phase:              "sysinit:ready",
-			CalculateSignature: true,
-		},
-		{
-			Phase:              "leave-initrd",
-			CalculateSignature: true,
-		},
-		{
-			Phase:              "sysinit",
-			CalculateSignature: true,
-		},
-		{
-			Phase:              "ready",
+			Phase:              constants.Ready,
 			CalculateSignature: true,
 		},
 	}
