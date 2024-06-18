@@ -6,6 +6,7 @@
 package uki
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -57,6 +58,9 @@ type Builder struct {
 	// PCR signer.
 	PCRSigner measure.RSAKey
 
+	// Path to the PCR signing key
+	PCRKey string
+
 	// Output options:
 	//
 	// Path to the signed sd-boot.
@@ -97,6 +101,18 @@ func (builder *Builder) Build() error {
 		slog.SetLogLoggerLevel(slog.LevelError)
 	default:
 		slog.SetLogLoggerLevel(slog.LevelInfo)
+	}
+
+	if builder.PCRSigner == nil {
+		if builder.PCRKey == "" {
+			return errors.New("no PCR signer or PCRKey available")
+		} else {
+			signer, err := pesign.NewPCRSigner(builder.PCRKey)
+			if err != nil {
+				return err
+			}
+			builder.PCRSigner = signer
+		}
 	}
 
 	builder.scratchDir, err = os.MkdirTemp("", "ukify")

@@ -11,13 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"github.com/google/go-tpm/tpm2"
 	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/types"
 	"log/slog"
 	"os"
-	"strings"
-
-	"github.com/google/go-tpm/tpm2"
 )
 
 // RSAKey is the input for the CalculateBankData function.
@@ -79,20 +77,9 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		// Calculate the phase by using the base measurements
 		// Otherwise we extend the measurements+previous phase with the current one
 		s := hashData
-
-		/* Measure a phase string into PCR 11. This splits up the "phase" expression at colons, and then
-		 * virtually extends each specified word into PCR 11, to model how during boot we measure a series of
-		 * words into PCR 11, one for each phase. */
-		// From https://github.com/systemd/systemd/blob/v255/src/boot/measure.c#L525C9-L528C1
-		// So for a phase called "enter-initrd:leave-initrd" we measure first "enter-initrd" and then "leave-initrd"
-		// And then we sign the final hash
-		slog.Debug("Doing full phase", "phase", phaseInfo.Phase, "alg", hashAlg.String())
-		splittedPhases := strings.Split(string(phaseInfo.Phase), ":")
-		for _, phase := range splittedPhases {
-			slog.Debug("Doing extend", "phase", phase, "alg", hashAlg.String())
-			// extend always
-			s.Extend([]byte(phase))
-		}
+		slog.Debug("Doing phase", "phase", phaseInfo.Phase, "alg", hashAlg.String())
+		// extend always
+		s.Extend([]byte(phaseInfo.Phase))
 
 		// Now sign if needed
 		if !phaseInfo.CalculateSignature {
@@ -100,19 +87,25 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		}
 
 		hash := s.Hash()
-		slog.Debug("Hash calculated", "hash", hex.EncodeToString(hash))
+		slog.Info("Hash calculated", "hash", hex.EncodeToString(hash))
 
+		// problem here
 		policyPCR, err := CalculatePolicy(hash, pcrSelection)
+
 		if err != nil {
 			return nil, err
 		}
 
-		slog.Debug("Policy calculated", "hash", hex.EncodeToString(policyPCR))
+		slog.Info("Policy calculated", "hash", hex.EncodeToString(policyPCR))
 
 		sigData, err := Sign(policyPCR, hashAlg, rsaKey)
 		if err != nil {
 			return nil, err
 		}
+
+		slog.Info("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
+		slog.Info("signed policy", "pol", sigData.Digest)
+		slog.Info("signed policy", "Sig", sigData.SignatureBase64)
 
 		banks = append(banks, types.BankData{
 			PCRs: []int{pcrNumber},
@@ -205,6 +198,7 @@ func CalculatePolicy(pcrValue []byte, pcrSelection tpm2.TPMLPCRSelection) ([]byt
 		return nil, err
 	}
 
+	calculator.Reset()
 	pcrHash := sha256.Sum256(pcrValue)
 
 	policy := tpm2.PolicyPCR{
@@ -217,6 +211,5 @@ func CalculatePolicy(pcrValue []byte, pcrSelection tpm2.TPMLPCRSelection) ([]byt
 	if err := policy.Update(calculator); err != nil {
 		return nil, err
 	}
-
 	return calculator.Hash().Digest, nil
 }

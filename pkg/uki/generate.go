@@ -228,7 +228,7 @@ func (builder *Builder) generatePCRSig() error {
 			return s.Name, s.Path
 		})
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
+	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger, builder.PCRKey)
 	if err != nil {
 		return err
 	}
