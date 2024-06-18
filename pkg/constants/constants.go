@@ -25,11 +25,11 @@ PRETTY_NAME="{{ .Name }} ({{ .Version }})"
 `
 	// EnterInitrd is the phase value extended to the PCR during the initrd.
 	EnterInitrd Phase = "enter-initrd"
+	LeaveInitrd Phase = "leave-initrd"
+	SysInit     Phase = "sysinit"
+	Ready       Phase = "ready"
 	// Systemd-measure uses the following phases:
 	// "enter-initrd", "enter-initrd:leave-initrd", "enter-initrd:leave-initrd:sysinit", "enter-initrd:leave-initrd:sysinit:ready"
-	EnterLeaveInitrd             Phase = "enter-initrd:leave-initrd"
-	EnterLeaveInitrdSysinit      Phase = "enter-initrd:leave-initrd:sysinit"
-	EnterLeaveInitrdSysinitReady Phase = "enter-initrd:leave-initrd:sysinit:ready"
 
 	// List of well-known section names.
 	Linux   Section = ".linux"

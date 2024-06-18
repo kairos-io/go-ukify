@@ -18,7 +18,7 @@ import (
 )
 
 func (builder *Builder) generateOSRel() error {
-	builder.Logger.Info("Generation os-release")
+	builder.Logger.Info("Generating os-release")
 	var path string
 	if builder.OsRelease != "" {
 		builder.Logger.Info("Using existing os-release", "path", builder.OsRelease)
@@ -83,26 +83,23 @@ func (builder *Builder) generateInitrd() error {
 }
 
 func (builder *Builder) generateSplash() error {
+	path := filepath.Join(builder.scratchDir, "splash.bmp")
+
+	// TODO: Let callers generate pass the splash
+	if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
+		return err
+	}
+
+	builder.sections = append(builder.sections,
+		section{
+			Name:    constants.Splash,
+			Path:    path,
+			Measure: true,
+			Append:  true,
+		},
+	)
+
 	return nil
-	/*
-		path := filepath.Join(builder.scratchDir, "splash.bmp")
-
-		if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
-			return err
-		}
-
-		builder.sections = append(builder.sections,
-			section{
-				Name:    constants.Splash,
-				Path:    path,
-				Measure: true,
-				Append:  true,
-			},
-		)
-
-		return nil
-
-	*/
 }
 
 func (builder *Builder) generateUname() error {
@@ -159,11 +156,12 @@ func (builder *Builder) generateSBAT() error {
 		section{
 			Name:    constants.SBAT,
 			Path:    path,
-			Measure: true,
+			Measure: false,
 		},
 	)
 
 	return nil
+
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
@@ -194,24 +192,21 @@ func (builder *Builder) generatePCRPublicKey() error {
 	)
 
 	return nil
+
 }
 
 func (builder *Builder) generateKernel() error {
-	// Sign kernel why??
-	// I cant see anything like this upstream
-	/*
-		builder.Logger.Info("Signing kernel")
-		path := filepath.Join(builder.scratchDir, "kernel")
+	builder.Logger.Info("Signing kernel")
+	path := filepath.Join(builder.scratchDir, "kernel")
 
-		if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
-			return err
-		}
-	*/
+	if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
+		return err
+	}
 
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Linux,
-			Path:    builder.KernelPath,
+			Path:    path,
 			Append:  true,
 			Measure: true,
 		},
