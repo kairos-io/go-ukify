@@ -59,7 +59,6 @@ func OrderedSections() []Section {
 		DTB,
 		Uname,
 		SBAT,
-		PCRSig,
 		PCRPKey}
 }
 
