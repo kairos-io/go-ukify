@@ -37,6 +37,11 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey, PCR int, logger
 		bankDataSetter *[]types.BankData
 	}{
 		{
+			alg:            tpm2.TPMAlgSHA1,
+			bankDataSetter: &data.SHA1,
+		},
+
+		{
 			alg:            tpm2.TPMAlgSHA256,
 			bankDataSetter: &data.SHA256,
 		},

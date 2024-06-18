@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/types"
+	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/google/go-tpm/tpm2"
 )
@@ -54,33 +56,58 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 	for _, section := range constants.OrderedSections() {
 		if file := sectionData[section]; file != "" {
-			hashData.Extend(append([]byte(section), 0))
+			slog.Debug("Doing section", "section", section, "alg", hashAlg.String())
 
-			sectionData, err := os.ReadFile(file)
+			sectionD, err := os.ReadFile(file)
 			if err != nil {
 				return nil, err
 			}
-
-			hashData.Extend(sectionData)
+			if len(sectionD) == 0 {
+				slog.Warn("Section is empty, not measuring", "section", section)
+				continue
+			}
+			// NULL terminated, thats why we adding the 0 at the end
+			hashData.Extend(append([]byte(section), 0))
+			hashData.Extend(sectionD)
 		}
 	}
 
 	banks := make([]types.BankData, 0)
 
+	// TODO: Allow passing the phases by config
 	for _, phaseInfo := range types.OrderedPhases() {
-		// extend always, but only calculate signature if requested
-		hashData.Extend([]byte(phaseInfo.Phase))
+		// Calculate the phase by using the base measurements
+		// Otherwise we extend the measurements+previous phase with the current one
+		s := hashData
 
+		/* Measure a phase string into PCR 11. This splits up the "phase" expression at colons, and then
+		 * virtually extends each specified word into PCR 11, to model how during boot we measure a series of
+		 * words into PCR 11, one for each phase. */
+		// From https://github.com/systemd/systemd/blob/v255/src/boot/measure.c#L525C9-L528C1
+		// So for a phase called "enter-initrd:leave-initrd" we measure first "enter-initrd" and then "leave-initrd"
+		// And then we sign the final hash
+		slog.Debug("Doing full phase", "phase", phaseInfo.Phase, "alg", hashAlg.String())
+		splittedPhases := strings.Split(string(phaseInfo.Phase), ":")
+		for _, phase := range splittedPhases {
+			slog.Debug("Doing extend", "phase", phase, "alg", hashAlg.String())
+			// extend always
+			s.Extend([]byte(phase))
+		}
+
+		// Now sign if needed
 		if !phaseInfo.CalculateSignature {
 			continue
 		}
 
-		hash := hashData.Hash()
+		hash := s.Hash()
+		slog.Debug("Hash calculated", "hash", hex.EncodeToString(hash))
 
 		policyPCR, err := CalculatePolicy(hash, pcrSelection)
 		if err != nil {
 			return nil, err
 		}
+
+		slog.Debug("Policy calculated", "hash", hex.EncodeToString(policyPCR))
 
 		sigData, err := Sign(policyPCR, hashAlg, rsaKey)
 		if err != nil {

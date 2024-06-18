@@ -83,22 +83,26 @@ func (builder *Builder) generateInitrd() error {
 }
 
 func (builder *Builder) generateSplash() error {
-	path := filepath.Join(builder.scratchDir, "splash.bmp")
-
-	if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
-		return err
-	}
-
-	builder.sections = append(builder.sections,
-		section{
-			Name:    constants.Splash,
-			Path:    path,
-			Measure: true,
-			Append:  true,
-		},
-	)
-
 	return nil
+	/*
+		path := filepath.Join(builder.scratchDir, "splash.bmp")
+
+		if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
+			return err
+		}
+
+		builder.sections = append(builder.sections,
+			section{
+				Name:    constants.Splash,
+				Path:    path,
+				Measure: true,
+				Append:  true,
+			},
+		)
+
+		return nil
+
+	*/
 }
 
 func (builder *Builder) generateUname() error {
@@ -193,17 +197,21 @@ func (builder *Builder) generatePCRPublicKey() error {
 }
 
 func (builder *Builder) generateKernel() error {
-	builder.Logger.Info("Signing kernel")
-	path := filepath.Join(builder.scratchDir, "kernel")
+	// Sign kernel why??
+	// I cant see anything like this upstream
+	/*
+		builder.Logger.Info("Signing kernel")
+		path := filepath.Join(builder.scratchDir, "kernel")
 
-	if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
-		return err
-	}
+		if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
+			return err
+		}
+	*/
 
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Linux,
-			Path:    path,
+			Path:    builder.KernelPath,
 			Append:  true,
 			Measure: true,
 		},

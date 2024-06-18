@@ -1,6 +1,8 @@
 package types
 
-import "github.com/itxaka/go-ukify/pkg/constants"
+import (
+	"github.com/itxaka/go-ukify/pkg/constants"
+)
 
 // PCRData is the data structure for PCR signature json.
 type PCRData struct {
@@ -33,25 +35,45 @@ type PhaseInfo struct {
 // Derived from https://github.com/systemd/systemd/blob/v253/src/boot/measure.c#L295-L308
 // ref: https://www.freedesktop.org/software/systemd/man/systemd-pcrphase.service.html#Description
 //
+// This means that for each phase the values will be measured at that point, so we want to cover all points
+// If you custom extend the PCR with your own phases, the this is useless
+// I.E. You want to load something and then extend so its measured up to that point, then the values below do
+// not work for you
 // OrderedPhases returns the phases that are measured.
-// It should be ok to measure only enter and leave as we unlock before that?
+// TODO: Allow overriding?
 func OrderedPhases() []PhaseInfo {
 	// DO NOT REARRANGE
 	return []PhaseInfo{
 		{
 			Phase:              constants.EnterInitrd,
-			CalculateSignature: false,
-		},
-		{
-			Phase:              constants.LeaveInitrd,
-			CalculateSignature: false,
-		},
-		{
-			Phase:              constants.SysInit,
 			CalculateSignature: true,
 		},
 		{
-			Phase:              constants.Ready,
+			Phase:              constants.EnterLeaveInitrd,
+			CalculateSignature: true,
+		},
+		{
+			Phase:              constants.EnterLeaveInitrdSysinit,
+			CalculateSignature: true,
+		},
+		{
+			Phase:              constants.EnterLeaveInitrdSysinitReady,
+			CalculateSignature: true,
+		},
+		{
+			Phase:              "sysinit:ready",
+			CalculateSignature: true,
+		},
+		{
+			Phase:              "leave-initrd",
+			CalculateSignature: true,
+		},
+		{
+			Phase:              "sysinit",
+			CalculateSignature: true,
+		},
+		{
+			Phase:              "ready",
 			CalculateSignature: true,
 		},
 	}

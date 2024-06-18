@@ -40,7 +40,7 @@ func (d *Digest) Extend(data []byte) {
 	hashSum := hash.Sum(nil)
 
 	// extend hash with previous data and hashed incoming data
-	hash.Reset()
+	hash = d.alg.New()
 	hash.Write(d.hash)
 	hash.Write(hashSum)
 

@@ -8,6 +8,7 @@ import (
 	"debug/pe"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,6 +72,8 @@ func (builder *Builder) assemble() error {
 	args = append(args, builder.SdStubPath, builder.unsignedUKIPath)
 
 	objcopy := "objcopy"
+
+	slog.Info("Assembling", "args", args)
 
 	cmd := exec.Command(objcopy, args...)
 	cmd.Stdout = os.Stdout
