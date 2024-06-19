@@ -60,10 +60,6 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 			if err != nil {
 				return nil, err
 			}
-			if len(sectionD) == 0 {
-				slog.Warn("Section is empty, not measuring", "section", section)
-				continue
-			}
 			// NULL terminated, thats why we adding the 0 at the end
 			hashData.Extend(append([]byte(section), 0))
 			hashData.Extend(sectionD)
@@ -74,38 +70,32 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 	// TODO: Allow passing the phases by config
 	for _, phaseInfo := range types.OrderedPhases() {
-		// Calculate the phase by using the base measurements
-		// Otherwise we extend the measurements+previous phase with the current one
-		s := hashData
 		slog.Debug("Doing phase", "phase", phaseInfo.Phase, "alg", hashAlg.String())
 		// extend always
-		s.Extend([]byte(phaseInfo.Phase))
+		hashData.Extend([]byte(phaseInfo.Phase))
 
 		// Now sign if needed
 		if !phaseInfo.CalculateSignature {
 			continue
 		}
 
-		hash := s.Hash()
-		slog.Info("Hash calculated", "hash", hex.EncodeToString(hash))
+		hash := hashData.Hash()
+		slog.Debug("Hash calculated", "hash", hex.EncodeToString(hash))
 
-		// problem here
 		policyPCR, err := CalculatePolicy(hash, pcrSelection)
 
 		if err != nil {
 			return nil, err
 		}
 
-		slog.Info("Policy calculated", "hash", hex.EncodeToString(policyPCR))
-
 		sigData, err := Sign(policyPCR, hashAlg, rsaKey)
 		if err != nil {
 			return nil, err
 		}
 
-		slog.Info("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
-		slog.Info("signed policy", "pol", sigData.Digest)
-		slog.Info("signed policy", "Sig", sigData.SignatureBase64)
+		slog.Debug("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
+		slog.Debug("signed policy", "pol", sigData.Digest)
+		slog.Debug("signed policy", "Sig", sigData.SignatureBase64)
 
 		banks = append(banks, types.BankData{
 			PCRs: []int{pcrNumber},
