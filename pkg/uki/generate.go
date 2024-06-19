@@ -161,7 +161,6 @@ func (builder *Builder) generateSBAT() error {
 	)
 
 	return nil
-
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
@@ -196,17 +195,12 @@ func (builder *Builder) generatePCRPublicKey() error {
 }
 
 func (builder *Builder) generateKernel() error {
-	builder.Logger.Info("Signing kernel")
-	path := filepath.Join(builder.scratchDir, "kernel")
-
-	if err := builder.peSigner.Sign(builder.KernelPath, path, builder.Logger); err != nil {
-		return err
-	}
+	builder.Logger.Info("Adding kernel")
 
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Linux,
-			Path:    path,
+			Path:    builder.KernelPath,
 			Append:  true,
 			Measure: true,
 		},
