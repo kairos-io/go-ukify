@@ -67,13 +67,16 @@ func (builder *Builder) assemble() error {
 		args = append(args, "--add-section", fmt.Sprintf("%s=%s", section.Name, section.Path), "--change-section-vma", fmt.Sprintf("%s=0x%x", section.Name, section.VMA))
 	}
 
+	// Set the section flag to CODE for .linux not usre if this does anything?
+	args = append(args, "--set-section-flags", ".linux=code,readonly")
+
 	builder.unsignedUKIPath = filepath.Join(builder.scratchDir, "unsigned.uki")
 
 	args = append(args, builder.SdStubPath, builder.unsignedUKIPath)
 
 	objcopy := "objcopy"
 
-	slog.Info("Assembling", "args", args)
+	slog.Debug("Assembling", "args", args)
 
 	cmd := exec.Command(objcopy, args...)
 	cmd.Stdout = os.Stdout

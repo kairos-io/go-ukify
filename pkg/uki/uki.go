@@ -61,6 +61,8 @@ type Builder struct {
 	// Path to the PCR signing key
 	PCRKey string
 
+	Splash string
+
 	// Output options:
 	//
 	// Path to the signed sd-boot.
@@ -164,6 +166,8 @@ func (builder *Builder) Build() error {
 		}
 	}
 
+	builder.Logger.Info("Generated UKI sections")
+
 	builder.Logger.Info("Assembling UKI")
 
 	// assemble the final UKI file
@@ -171,8 +175,13 @@ func (builder *Builder) Build() error {
 		return fmt.Errorf("error assembling UKI: %w", err)
 	}
 
+	builder.Logger.Info("Assembled UKI")
 	builder.Logger.Info("Signing UKI")
 
 	// sign the UKI file
-	return builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
+	err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
+	if err == nil {
+		builder.Logger.Info("Signed UKI")
+	}
+	return err
 }

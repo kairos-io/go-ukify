@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"github.com/itxaka/go-ukify/internal/common"
 	"os"
 	"path/filepath"
 
@@ -18,14 +19,13 @@ import (
 )
 
 func (builder *Builder) generateOSRel() error {
-	builder.Logger.Info("Generating os-release")
 	var path string
 	if builder.OsRelease != "" {
-		builder.Logger.Info("Using existing os-release", "path", builder.OsRelease)
+		builder.Logger.Debug("Using existing os-release", "path", builder.OsRelease)
 		path = builder.OsRelease
 	} else {
 		// Generate a simplified os-release
-		builder.Logger.Info("Generating a new os-release")
+		builder.Logger.Debug("Generating a new os-release")
 		osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
 		if err != nil {
 			return err
@@ -49,7 +49,7 @@ func (builder *Builder) generateOSRel() error {
 }
 
 func (builder *Builder) generateCmdline() error {
-	builder.Logger.Info("Using cmdline", "cmdline", builder.Cmdline)
+	builder.Logger.Debug("Using cmdline", "cmdline", builder.Cmdline)
 	path := filepath.Join(builder.scratchDir, "cmdline")
 
 	if err := os.WriteFile(path, []byte(builder.Cmdline), 0o600); err != nil {
@@ -69,7 +69,7 @@ func (builder *Builder) generateCmdline() error {
 }
 
 func (builder *Builder) generateInitrd() error {
-	builder.Logger.Info("Using initrd", "path", builder.InitrdPath)
+	builder.Logger.Debug("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.Initrd,
@@ -84,9 +84,17 @@ func (builder *Builder) generateInitrd() error {
 
 func (builder *Builder) generateSplash() error {
 	path := filepath.Join(builder.scratchDir, "splash.bmp")
+	var data []byte
 
-	// TODO: Let callers generate pass the splash
-	if err := os.WriteFile(path, []byte(""), 0o600); err != nil {
+	if builder.Splash != "" {
+		builder.Logger.Debug("Using splash", "file", builder.Splash)
+		data, _ = os.ReadFile(builder.Splash)
+	} else {
+		builder.Logger.Debug("Using generic bundled splash")
+		data = common.Logo
+	}
+
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return err
 	}
 
@@ -103,7 +111,6 @@ func (builder *Builder) generateSplash() error {
 }
 
 func (builder *Builder) generateUname() error {
-	builder.Logger.Info("Getting kernel version")
 	// it is not always possible to get the kernel version from the kernel image, so we
 	// do a bit of pre-checks
 	var kernelVersion string
@@ -116,7 +123,7 @@ func (builder *Builder) generateUname() error {
 		builder.Logger.Info("We could not infer kernel version", "path", builder.KernelPath)
 		return nil
 	} else {
-		builder.Logger.Info("Using kernel version", "version", kernelVersion, "path", builder.KernelPath)
+		builder.Logger.Debug("Getting uname", "version", kernelVersion, "path", builder.KernelPath)
 	}
 
 	path := filepath.Join(builder.scratchDir, "uname")
@@ -138,7 +145,7 @@ func (builder *Builder) generateUname() error {
 }
 
 func (builder *Builder) generateSBAT() error {
-	builder.Logger.Info("Generating SBAT", "path", builder.SdStubPath)
+	builder.Logger.Debug("Getting SBAT", "path", builder.SdStubPath)
 	sbat, err := GetSBAT(builder.SdStubPath)
 	if err != nil {
 		return err
@@ -152,11 +159,14 @@ func (builder *Builder) generateSBAT() error {
 		return err
 	}
 
+	// SBAT needs to be measured but NOT added
+	// This is because we build with the systemd-stub as base, and that already has a .sbat section!
+	// So int he final PE file we will get the .sbat section in there, so we need to measure.
 	builder.sections = append(builder.sections,
 		section{
 			Name:    constants.SBAT,
 			Path:    path,
-			Measure: false,
+			Measure: true,
 		},
 	)
 
@@ -164,7 +174,7 @@ func (builder *Builder) generateSBAT() error {
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
-	builder.Logger.Info("Generating Public PCR key")
+	builder.Logger.Debug("Getting Public PCR key")
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(builder.PCRSigner.PublicRSAKey())
 	if err != nil {
 		return err
@@ -195,7 +205,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 }
 
 func (builder *Builder) generateKernel() error {
-	builder.Logger.Info("Adding kernel")
+	builder.Logger.Debug("Getting kernel")
 
 	builder.sections = append(builder.sections,
 		section{
@@ -210,7 +220,7 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
-	builder.Logger.Info("Generating PCR measurements")
+	builder.Logger.Info("Generating PCR measurements and signed policy")
 	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := xslices.ToMap(
 		xslices.Filter(builder.sections,
@@ -227,8 +237,9 @@ func (builder *Builder) generatePCRSig() error {
 		return err
 	}
 
-	// To check if measurements between us and systemd-measure are the same
-	//measure.CheckSignedMeasurementsAgainstSystemd(sectionsData, builder.PCRKey, pcrData)
+	if builder.LogLevel == "debug" {
+		measure.PrintSystemdMeasurements("enter-initrd:leave-initrd:sysinit:ready", sectionsData, builder.PCRKey)
+	}
 
 	pcrSignatureData, err := json.Marshal(pcrData)
 	if err != nil {

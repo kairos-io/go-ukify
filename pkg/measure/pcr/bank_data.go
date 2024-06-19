@@ -54,7 +54,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 	for _, section := range constants.OrderedSections() {
 		if file := sectionData[section]; file != "" {
-			slog.Debug("Doing section", "section", section, "alg", hashAlg.String())
+			slog.Debug("Measuring section", "section", section, "alg", hashAlg.String())
 
 			sectionD, err := os.ReadFile(file)
 			if err != nil {
@@ -80,7 +80,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		}
 
 		hash := hashData.Hash()
-		slog.Debug("Hash calculated", "hash", hex.EncodeToString(hash))
+		slog.Debug("Expected Hash calculated", "hash", hex.EncodeToString(hash), "alg", hashAlg.String(), "phase", phaseInfo.Phase)
 
 		policyPCR, err := CalculatePolicy(hash, pcrSelection)
 

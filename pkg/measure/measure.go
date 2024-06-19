@@ -10,13 +10,13 @@ package measure
 import (
 	"crypto"
 	"crypto/rsa"
-	"encoding/json"
 	"github.com/google/go-tpm/tpm2"
 	"github.com/itxaka/go-ukify/pkg/constants"
 	"github.com/itxaka/go-ukify/pkg/measure/pcr"
 	"github.com/itxaka/go-ukify/pkg/types"
 	"log/slog"
 	"os/exec"
+	"regexp"
 )
 
 // SectionsData holds a map of Section to file path to the corresponding section.
@@ -65,7 +65,7 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey RSAKey, PCR int, logger
 	return data, nil
 }
 
-func CheckSignedMeasurementsAgainstSystemd(sectionsData SectionsData, privKey string, measurements *types.PCRData) {
+func PrintSystemdMeasurements(phase string, sectionsData SectionsData, privKey string) {
 	args := []string{
 		"--cmdline", sectionsData[constants.CMDLine],
 		"--initrd", sectionsData[constants.Initrd],
@@ -74,45 +74,29 @@ func CheckSignedMeasurementsAgainstSystemd(sectionsData SectionsData, privKey st
 		"--pcrpkey", sectionsData[constants.PCRPKey],
 		"--sbat", sectionsData[constants.SBAT],
 		"--uname", sectionsData[constants.Uname],
-		"--phase", "enter-initrd:leave-initrd:sysinit:ready",
+		"--splash", sectionsData[constants.Splash],
+		"--phase", phase,
 		"--private-key", privKey,
 		"--bank", "SHA256",
 		"--json=short"}
 
-	type Calculate struct {
-		Sha256 []struct {
-			Phase string `json:"phase"`
-			Pcr   int    `json:"pcr"`
-			Hash  string `json:"hash"`
-		} `json:"sha256"`
-	}
-
-	type Sign struct {
-		Sha256 []struct {
-			Pcrs []int  `json:"pcrs"`
-			Pkfp string `json:"pkfp"`
-			Pol  string `json:"pol"`
-			Sig  string `json:"sig"`
-		} `json:"sha256"`
-	}
+	slog.Debug("using the following contents for measurements",
+		"cmdline", sectionsData[constants.CMDLine],
+		"initrd", sectionsData[constants.Initrd],
+		"linux", sectionsData[constants.Linux],
+		"osrel", sectionsData[constants.OSRel],
+		"sbat", sectionsData[constants.SBAT],
+		"pcrpkey", sectionsData[constants.PCRPKey],
+		"uname", sectionsData[constants.Uname],
+		"--splash", sectionsData[constants.Splash],
+	)
 
 	// First log the hash we got from the final phase
 	cmd := exec.Command("/usr/lib/systemd/systemd-measure", append([]string{"calculate"}, args...)...)
 	out, _ := cmd.CombinedOutput()
-	outputCalculate := Calculate{}
-	json.Unmarshal(out, &outputCalculate)
-	slog.Debug("measure calculate output", "out", outputCalculate.Sha256[0].Hash)
-
-	cmd = exec.Command("/usr/lib/systemd/systemd-measure", append([]string{"sign"}, args...)...)
-	out, _ = cmd.CombinedOutput()
-	outPut := Sign{}
-	json.Unmarshal(out, &outPut)
-	slog.Debug("measure sign output", "PKFP", outPut.Sha256[0].Pkfp)
-	slog.Debug("measure sign output", "pol", outPut.Sha256[0].Pol)
-	slog.Debug("measure sign output", "Sig", outPut.Sha256[0].Sig)
-	if measurements.SHA256[0].Sig != outPut.Sha256[0].Sig {
-
-	}
+	r, _ := regexp.Compile(`hash":"([\w|\d].*)"`)
+	match := r.Find(out)
+	slog.Debug("measure output", "match", match, "phase", phase)
 }
 
 // GenerateSignedPCRForBytes generates the PCR signed data for a given file
