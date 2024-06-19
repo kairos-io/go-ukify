@@ -55,9 +55,13 @@ type Builder struct {
 	OsRelease string
 	// SecureBoot certificate and signer.
 	SecureBootSigner pesign.CertificateSigner
+	// SecureBoot key
+	SBKey string
+	// SecureBoot cert
+	SBCert string
+
 	// PCR signer.
 	PCRSigner measure.RSAKey
-
 	// Path to the PCR signing key
 	PCRKey string
 
@@ -114,6 +118,18 @@ func (builder *Builder) Build() error {
 				return err
 			}
 			builder.PCRSigner = signer
+		}
+	}
+
+	if builder.SecureBootSigner == nil {
+		if builder.SBCert == "" || builder.SBKey == "" {
+			return errors.New("no Secureboot signer or combination of SB key+cert to sign")
+		} else {
+			sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
+			if err != nil {
+				return err
+			}
+			builder.SecureBootSigner = sbSigner
 		}
 	}
 
