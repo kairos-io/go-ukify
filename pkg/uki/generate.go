@@ -222,10 +222,13 @@ func (builder *Builder) generatePCRSig() error {
 			return s.Name, s.Path
 		})
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger, builder.PCRKey)
+	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
 	if err != nil {
 		return err
 	}
+
+	// To check if measurements between us and systemd-measure are the same
+	//measure.CheckSignedMeasurementsAgainstSystemd(sectionsData, builder.PCRKey, pcrData)
 
 	pcrSignatureData, err := json.Marshal(pcrData)
 	if err != nil {
