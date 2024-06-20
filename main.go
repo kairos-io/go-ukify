@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/itxaka/go-ukify/cmd"
+	"github.com/kairos-io/go-ukify/cmd"
 	"log"
 	"os"
 	"os/signal"

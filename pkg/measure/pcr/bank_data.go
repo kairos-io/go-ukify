@@ -12,8 +12,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/google/go-tpm/tpm2"
-	"github.com/itxaka/go-ukify/pkg/constants"
-	"github.com/itxaka/go-ukify/pkg/types"
+	"github.com/kairos-io/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"log/slog"
 	"os"
 )

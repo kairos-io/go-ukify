@@ -8,14 +8,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"github.com/itxaka/go-ukify/internal/common"
+	"github.com/kairos-io/go-ukify/internal/common"
 	"os"
 	"path/filepath"
 
 	"github.com/siderolabs/gen/xslices"
 
-	"github.com/itxaka/go-ukify/pkg/constants"
-	"github.com/itxaka/go-ukify/pkg/measure"
+	"github.com/kairos-io/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/measure"
 )
 
 func (builder *Builder) generateOSRel() error {

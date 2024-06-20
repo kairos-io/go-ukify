@@ -3,8 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/itxaka/go-ukify/pkg/measure"
-	"github.com/itxaka/go-ukify/pkg/pesign"
+	"github.com/kairos-io/go-ukify/pkg/measure"
+	"github.com/kairos-io/go-ukify/pkg/pesign"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log/slog"

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/itxaka/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/constants"
 )
 
 // PCRData is the data structure for PCR signature json.

@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/itxaka/go-ukify/pkg/pesign"
-	"github.com/itxaka/go-ukify/pkg/uki"
+	"github.com/kairos-io/go-ukify/pkg/pesign"
+	"github.com/kairos-io/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

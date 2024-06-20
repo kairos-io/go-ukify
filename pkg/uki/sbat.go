@@ -7,7 +7,7 @@ package uki
 import (
 	"debug/pe"
 	"errors"
-	"github.com/itxaka/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/constants"
 )
 
 // GetSBAT returns the SBAT section from the PE file.

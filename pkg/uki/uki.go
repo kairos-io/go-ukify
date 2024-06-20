@@ -13,9 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/itxaka/go-ukify/pkg/constants"
-	"github.com/itxaka/go-ukify/pkg/measure"
-	"github.com/itxaka/go-ukify/pkg/pesign"
+	"github.com/kairos-io/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/measure"
+	"github.com/kairos-io/go-ukify/pkg/pesign"
 )
 
 // section is a UKI file section.

@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/foxboron/go-uefi/efi"
-	"github.com/itxaka/go-ukify/pkg/measure"
+	"github.com/kairos-io/go-ukify/pkg/measure"
 )
 
 // Signer sigs PE (portable executable) files.

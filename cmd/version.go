@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/itxaka/go-ukify/internal/common"
+	"github.com/kairos-io/go-ukify/internal/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
