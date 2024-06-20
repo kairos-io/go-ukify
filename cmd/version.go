@@ -23,6 +23,6 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	versionCmd.Flags().BoolP("long", "l", false, "long version format")
-	_ = viper.BindPFlags(measureCmd.Flags())
+	_ = viper.BindPFlags(versionCmd.Flags())
 	rootCmd.AddCommand(versionCmd)
 }

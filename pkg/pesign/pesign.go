@@ -12,13 +12,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/foxboron/go-uefi/efi"
-	"github.com/kairos-io/go-ukify/pkg/measure"
 )
 
 // Signer sigs PE (portable executable) files.
@@ -131,7 +131,7 @@ type PCRSigner struct {
 }
 
 // Verify interface.
-var _ measure.RSAKey = (*PCRSigner)(nil)
+var _ types.RSAKey = (*PCRSigner)(nil)
 
 // PublicRSAKey returns the public key.
 func (s *PCRSigner) PublicRSAKey() *rsa.PublicKey {

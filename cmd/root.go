@@ -12,7 +12,7 @@ func NewRootCmd() *cobra.Command {
 		Use: "ukify",
 	}
 	cmd.PersistentFlags().Bool("debug", false, "Enable debug output")
-	_ = viper.BindPFlags(measureCmd.Flags())
+	_ = viper.BindPFlags(cmd.Flags())
 	if viper.GetBool("debug") {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}

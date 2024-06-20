@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"github.com/kairos-io/go-ukify/internal/common"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"os"
 	"path/filepath"
 
@@ -37,7 +38,7 @@ func (builder *Builder) generateOSRel() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.OSRel,
 			Path:    path,
 			Measure: true,
@@ -57,7 +58,7 @@ func (builder *Builder) generateCmdline() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.CMDLine,
 			Path:    path,
 			Measure: true,
@@ -71,7 +72,7 @@ func (builder *Builder) generateCmdline() error {
 func (builder *Builder) generateInitrd() error {
 	builder.Logger.Debug("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Initrd,
 			Path:    builder.InitrdPath,
 			Measure: true,
@@ -99,7 +100,7 @@ func (builder *Builder) generateSplash() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Splash,
 			Path:    path,
 			Measure: true,
@@ -133,7 +134,7 @@ func (builder *Builder) generateUname() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Uname,
 			Path:    path,
 			Measure: true,
@@ -163,7 +164,7 @@ func (builder *Builder) generateSBAT() error {
 	// This is because we build with the systemd-stub as base, and that already has a .sbat section!
 	// So int he final PE file we will get the .sbat section in there, so we need to measure.
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.SBAT,
 			Path:    path,
 			Measure: true,
@@ -192,7 +193,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.PCRPKey,
 			Path:    path,
 			Append:  true,
@@ -208,7 +209,7 @@ func (builder *Builder) generateKernel() error {
 	builder.Logger.Debug("Getting kernel")
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Linux,
 			Path:    builder.KernelPath,
 			Append:  true,
@@ -224,11 +225,11 @@ func (builder *Builder) generatePCRSig() error {
 	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := xslices.ToMap(
 		xslices.Filter(builder.sections,
-			func(s section) bool {
+			func(s types.UkiSection) bool {
 				return s.Measure
 			},
 		),
-		func(s section) (constants.Section, string) {
+		func(s types.UkiSection) (constants.Section, string) {
 			return s.Name, s.Path
 		})
 
@@ -253,7 +254,7 @@ func (builder *Builder) generatePCRSig() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:   constants.PCRSig,
 			Path:   path,
 			Append: true,

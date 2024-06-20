@@ -60,7 +60,7 @@ func init() {
 	_ = createUkify.MarkFlagRequired("sd-boot-path")
 	_ = createUkify.MarkFlagRequired("initrd-path")
 	_ = createUkify.MarkFlagRequired("pcr-key")
-	_ = viper.BindPFlags(measureCmd.Flags())
+	_ = viper.BindPFlags(createUkify.Flags())
 
 	rootCmd.AddCommand(createUkify)
 

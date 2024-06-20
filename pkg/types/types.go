@@ -1,6 +1,8 @@
 package types
 
 import (
+	"crypto"
+	"crypto/rsa"
 	"github.com/kairos-io/go-ukify/pkg/constants"
 )
 
@@ -61,4 +63,25 @@ func OrderedPhases() []PhaseInfo {
 			CalculateSignature: true,
 		},
 	}
+}
+
+// UkiSection is a UKI file section.
+type UkiSection struct {
+	// Section name.
+	Name constants.Section
+	// Path to the contents of the section.
+	Path string
+	// Should the section be measured to the TPM?
+	Measure bool
+	// Should the section be appended, or is it already in the PE file.
+	Append bool
+	// Size & VMA of the section.
+	Size uint64
+	VMA  uint64
+}
+
+// RSAKey is the input for the CalculateBankData function.
+type RSAKey interface {
+	crypto.Signer
+	PublicRSAKey() *rsa.PublicKey
 }

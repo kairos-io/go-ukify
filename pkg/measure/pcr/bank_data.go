@@ -5,8 +5,6 @@
 package pcr
 
 import (
-	"crypto"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -18,16 +16,10 @@ import (
 	"os"
 )
 
-// RSAKey is the input for the CalculateBankData function.
-type RSAKey interface {
-	crypto.Signer
-	PublicRSAKey() *rsa.PublicKey
-}
-
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
-func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey RSAKey) ([]types.BankData, error) {
+func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey types.RSAKey) ([]types.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
 
@@ -36,7 +28,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		return nil, err
 	}
 
-	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
+	pcrSelector, err := CreateSelector([]int{pcrNumber})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
 	}
@@ -108,7 +100,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 	return banks, nil
 }
 
-func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsaKey RSAKey) ([]types.BankData, error) {
+func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsaKey types.RSAKey) ([]types.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
 
@@ -166,6 +158,9 @@ func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsa
 
 // CreateSelector converts PCR  numbers into a bitmask.
 func CreateSelector(pcrs []int) ([]byte, error) {
+	// From https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
+	// A conformant TPM SHALL allow an allocation of a minimum of 24 PCRs, 0-23, within all allocated banks
+
 	const sizeOfPCRSelect = 3
 
 	mask := make([]byte, sizeOfPCRSelect)

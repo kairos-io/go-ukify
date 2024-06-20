@@ -8,30 +8,14 @@ package uki
 import (
 	"errors"
 	"fmt"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"log"
 	"log/slog"
 	"os"
 	"strings"
 
-	"github.com/kairos-io/go-ukify/pkg/constants"
-	"github.com/kairos-io/go-ukify/pkg/measure"
 	"github.com/kairos-io/go-ukify/pkg/pesign"
 )
-
-// section is a UKI file section.
-type section struct {
-	// Section name.
-	Name constants.Section
-	// Path to the contents of the section.
-	Path string
-	// Should the section be measured to the TPM?
-	Measure bool
-	// Should the section be appended, or is it already in the PE file.
-	Append bool
-	// Size & VMA of the section.
-	Size uint64
-	VMA  uint64
-}
 
 // Builder is a UKI file builder.
 type Builder struct {
@@ -61,7 +45,7 @@ type Builder struct {
 	SBCert string
 
 	// PCR signer.
-	PCRSigner measure.RSAKey
+	PCRSigner types.RSAKey
 	// Path to the PCR signing key
 	PCRKey string
 
@@ -79,7 +63,7 @@ type Builder struct {
 	LogLevel string
 
 	// fields initialized during build
-	sections        []section
+	sections        []types.UkiSection
 	scratchDir      string
 	peSigner        *pesign.Signer
 	unsignedUKIPath string
