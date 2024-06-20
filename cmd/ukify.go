@@ -1,15 +1,31 @@
 package cmd
 
 import (
+	"github.com/kairos-io/go-ukify/pkg/constants"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"github.com/kairos-io/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"strings"
 )
 
 var createUkify = &cobra.Command{
 	Use:   "create",
 	Short: "Create a uki file",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var parsedPhases []types.PhaseInfo
+
+		phases := viper.GetString("phases")
+		// Default to know systemd phases
+		if phases == "" {
+			parsedPhases = types.OrderedPhases()
+		} else {
+			// Parse phases from string in order
+			for _, phase := range strings.Split(phases, ":") {
+				parsedPhases = append(parsedPhases, types.PhaseInfo{Phase: constants.Phase(phase)})
+			}
+		}
+
 		builder := &uki.Builder{
 			Arch:          viper.GetString("arch"),
 			Version:       viper.GetString("version"),
@@ -23,6 +39,7 @@ var createUkify = &cobra.Command{
 			PCRKey:        viper.GetString("pcr-key"),
 			SBKey:         viper.GetString("sb-key"),
 			SBCert:        viper.GetString("sb-cert"),
+			Phases:        parsedPhases,
 		}
 
 		if viper.GetString("os-release") != "" {
@@ -47,6 +64,7 @@ func init() {
 	createUkify.Flags().StringP("pcr-key", "p", "", "PCR key.")
 	createUkify.Flags().StringP("output-sdboot", "", "sdboot.signed.efi", "sdboot output.")
 	createUkify.Flags().StringP("output-uki", "", "uki.signed.efi", "uki artifact output.")
+	createUkify.Flags().StringP("phases", "", "enter-initrd:leave-initrd:sysinit:ready", "phases to measure for, separated by : and in order of measurement")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
 	_ = createUkify.MarkFlagRequired("initrd")

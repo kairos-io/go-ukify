@@ -36,6 +36,9 @@ type Builder struct {
 	Cmdline string
 	// Os-release file
 	OsRelease string
+	// Phases to measure for
+	Phases []types.PhaseInfo
+
 	// SecureBoot certificate and signer.
 	SecureBootSigner pesign.CertificateSigner
 	// SecureBoot key

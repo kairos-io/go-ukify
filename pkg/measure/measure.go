@@ -8,7 +8,8 @@
 package measure
 
 import (
-	"github.com/google/go-tpm/tpm2"
+	"encoding/hex"
+	"fmt"
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/measure/pcr"
 	"github.com/kairos-io/go-ukify/pkg/types"
@@ -21,83 +22,38 @@ import (
 type SectionsData map[constants.Section]string
 
 // GenerateSignedPCR generates the PCR signed data for a given set of UKI file sections.
-func GenerateSignedPCR(sectionsData SectionsData, rsaKey types.RSAKey, PCR int, logger *slog.Logger) (*types.PCRData, error) {
+func GenerateSignedPCR(sectionsData SectionsData, phases []types.PhaseInfo, rsaKey types.RSAKey, PCR int, logger *slog.Logger) (*types.PCRData, error) {
 	data := &types.PCRData{}
 	logger.Debug("Generating PCR data", "sections", sectionsData)
 
-	// TODO: unduplicate this or better, move it to a constant?
-	for _, algo := range []struct {
-		alg            tpm2.TPMAlgID
-		bankDataSetter *[]types.BankData
-	}{
-		{
-			alg:            tpm2.TPMAlgSHA1,
-			bankDataSetter: &data.SHA1,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA256,
-			bankDataSetter: &data.SHA256,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA384,
-			bankDataSetter: &data.SHA384,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA512,
-			bankDataSetter: &data.SHA512,
-		},
-	} {
-		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, rsaKey, true)
+	data, algos := types.GetTPMALGorithm()
+	for _, alg := range algos {
+		bankData, err := pcr.CalculateBankData(PCR, phases, alg.Alg, sectionsData, rsaKey)
 		if err != nil {
 			return nil, err
 		}
 
-		*algo.bankDataSetter = bankData
+		*alg.BankDataSetter = bankData
 	}
 
 	return data, nil
 }
 
-// GenerateMeasurements generates the PCR measurements for a given set of UKI file sections.
-func GenerateMeasurements(sectionsData SectionsData, PCR int, logger *slog.Logger) {
-	data := &types.PCRData{}
+// GenerateMeasurements generates the PCR measurements for a given set of UKI file sections and phases
+func GenerateMeasurements(sectionsData SectionsData, phases []types.PhaseInfo, PCR int, logger *slog.Logger) {
 	logger.Debug("Generating PCR data", "sections", sectionsData)
 	logger.Info("Not signing data, just outputting it to stdout")
 	logger.Info("legend: <PHASE:PCR:ALGORITHM=HASH>")
 
-	// Rework to do:
-	// for phase in ordered phase
-	// then inside the loop
-	// for alg in algs
-	// Either that, or store everything in a nicer struct and then
-	// clean it up before
-	for _, algo := range []struct {
-		alg            tpm2.TPMAlgID
-		bankDataSetter *[]types.BankData
-	}{
-		{
-			alg:            tpm2.TPMAlgSHA1,
-			bankDataSetter: &data.SHA1,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA256,
-			bankDataSetter: &data.SHA256,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA384,
-			bankDataSetter: &data.SHA384,
-		},
-		{
-			alg:            tpm2.TPMAlgSHA512,
-			bankDataSetter: &data.SHA512,
-		},
-	} {
-		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, nil, false)
-		if err != nil {
-			return
+	_, algos := types.GetTPMALGorithm()
+	for _, alg := range algos {
+		hash, _ := pcr.MeasureSections(alg.Alg, sectionsData)
+		for _, phase := range phases {
+			pcr.MeasurePhase(phase, alg.Alg, hash)
+			al, _ := alg.Alg.Hash()
+			logger.Info(fmt.Sprintf("%s:%d:%s=%s", phase.Phase, PCR, al.String(), hex.EncodeToString(hash.Hash())))
 		}
 
-		*algo.bankDataSetter = bankData
 	}
 }
 

@@ -10,10 +10,9 @@ import (
 	"encoding/pem"
 	"github.com/kairos-io/go-ukify/internal/common"
 	"github.com/kairos-io/go-ukify/pkg/types"
+	"github.com/siderolabs/gen/xslices"
 	"os"
 	"path/filepath"
-
-	"github.com/siderolabs/gen/xslices"
 
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/measure"
@@ -239,7 +238,7 @@ func (builder *Builder) generatePCRSig() error {
 	// If we have the signer sign the measurements and attach them to the uki file
 	if builder.pcrSignEnabled() {
 		builder.Logger.Info("Generating signed policy")
-		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
+		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.Phases, builder.PCRSigner, constants.UKIPCR, builder.Logger)
 		if err != nil {
 			return err
 		}
@@ -263,11 +262,11 @@ func (builder *Builder) generatePCRSig() error {
 		)
 	} else {
 		// Otherwise just measure and print the measurements
-		measure.GenerateMeasurements(sectionsData, constants.UKIPCR, builder.Logger)
+		measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR, builder.Logger)
 	}
 
 	if builder.LogLevel == "debug" {
-		measure.PrintSystemdMeasurements("enter-initrd:leave-initrd:sysinit:ready", sectionsData, builder.PCRKey)
+		measure.PrintSystemdMeasurements(types.PhasesToString(builder.Phases), sectionsData, builder.PCRKey)
 	}
 
 	return nil
