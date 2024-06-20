@@ -28,12 +28,20 @@ func GenerateSignedPCR(sectionsData SectionsData, phases []types.PhaseInfo, rsaK
 
 	data, algos := types.GetTPMALGorithm()
 	for _, alg := range algos {
-		bankData, err := pcr.CalculateBankData(PCR, phases, alg.Alg, sectionsData, rsaKey)
+		banks := make([]types.BankData, 0)
+		hash, err := pcr.MeasureSections(alg.Alg, sectionsData)
 		if err != nil {
 			return nil, err
 		}
-
-		*alg.BankDataSetter = bankData
+		for _, phase := range phases {
+			hash = pcr.MeasurePhase(phase, alg.Alg, hash)
+			bank, err := pcr.SignPolicy(PCR, alg.Alg, rsaKey, hash)
+			if err != nil {
+				return nil, err
+			}
+			banks = append(banks, bank)
+		}
+		*alg.BankDataSetter = banks
 	}
 
 	return data, nil

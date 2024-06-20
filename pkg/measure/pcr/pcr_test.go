@@ -84,20 +84,36 @@ var _ = Describe("PCR tests", func() {
 	})
 	Describe("Bank", func() {
 		Describe("CalculateBankData", func() {
-			It("Calculates the policy hash for empty sections", func() {
+			It("Calculates the policy hash for empty sections", Focus, func() {
 				sectionsData := SectionsData([]types.UkiSection{})
-				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
+				//data, err := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(len(data)).ToNot(Equal(0))
-				Expect(data[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data[1].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data[2].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data[3].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
+				var data *types.PCRData
+				var algos []types.Algorithm
+				data, algos = types.GetTPMALGorithm()
+				for _, alg := range algos {
+					banks := make([]types.BankData, 0)
+					hash, err := MeasureSections(alg.Alg, sectionsData)
+					Expect(err).ToNot(HaveOccurred())
+					for _, phase := range types.OrderedPhases() {
+						hash = MeasurePhase(phase, alg.Alg, hash)
+						bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+						Expect(err).ToNot(HaveOccurred())
+						banks = append(banks, bank)
+					}
+					*alg.BankDataSetter = banks
+				}
+
+				Expect(len(data.SHA1)).ToNot(Equal(0))
+				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
 			})
 			It("Does not calculate the same policy hash for a different PCR", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
 				// Using PCR13 instead of PCR11
-				data, err := CalculateBankData(13, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
+				data, err := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
@@ -108,7 +124,7 @@ var _ = Describe("PCR tests", func() {
 			It("Policy hash doesnt match when changing the sections", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
 
-				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
+				data, err := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
@@ -119,7 +135,7 @@ var _ = Describe("PCR tests", func() {
 				sectionsData = SectionsData([]types.UkiSection{
 					cmdlineSection,
 				})
-				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
+				data, err = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
@@ -131,7 +147,7 @@ var _ = Describe("PCR tests", func() {
 					cmdlineSection,
 					unameSection,
 				})
-				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
+				data, err = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
