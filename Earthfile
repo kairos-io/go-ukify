@@ -25,7 +25,7 @@ build:
 
 test:
     FROM fedora
-    RUN dnf install -y systemd-boot
+    RUN dnf install -y systemd-boot binutils
     WORKDIR build
     COPY +uki-artifacts/kernel kernel
     COPY +uki-artifacts/initrd initrd
