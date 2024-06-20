@@ -105,15 +105,19 @@ func (builder *Builder) Build() error {
 		}
 	}
 
-	if builder.SecureBootSigner == nil {
-		if builder.SBCert == "" || builder.SBKey == "" {
-			return errors.New("no Secureboot signer or combination of SB key+cert to sign")
-		} else {
-			sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
-			if err != nil {
-				return err
+	// Try to generate a signer base on our given args
+	// If we have a	either a signer or key/cert
+	// Try to use first the signer as we can use a custom signed passed in the struct
+	// otherwise create a new default signer with the key and cert
+	if builder.sbSignEnabled() {
+		if builder.SecureBootSigner == nil {
+			if builder.SBCert != "" && builder.SBKey != "" {
+				sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
+				if err != nil {
+					return err
+				}
+				builder.SecureBootSigner = sbSigner
 			}
-			builder.SecureBootSigner = sbSigner
 		}
 	}
 
@@ -128,7 +132,8 @@ func (builder *Builder) Build() error {
 		}
 	}()
 
-	if builder.SdBootPath != "" {
+	// Sign sd-boot if given and signing is enabled
+	if builder.SdBootPath != "" && builder.sbSignEnabled() {
 		slog.Info("Signing systemd-boot", "path", builder.SdBootPath)
 
 		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
@@ -176,12 +181,21 @@ func (builder *Builder) Build() error {
 	}
 
 	builder.Logger.Info("Assembled UKI")
-	builder.Logger.Info("Signing UKI")
 
-	// sign the UKI file
-	err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
-	if err == nil {
-		builder.Logger.Info("Signed UKI")
+	// sign the UKI file if signing is enabled
+	if builder.sbSignEnabled() {
+		builder.Logger.Info("Signing UKI")
+		err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
+		if err == nil {
+			builder.Logger.Info("Signed UKI")
+		}
+	} else {
+		builder.Logger.Info("Not signing UKI")
 	}
+
 	return err
+}
+
+func (builder *Builder) sbSignEnabled() bool {
+	return builder.SecureBootSigner != nil || (builder.SBKey != "" && builder.SBCert != "")
 }

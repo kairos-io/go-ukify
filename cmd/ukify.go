@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/kairos-io/go-ukify/pkg/pesign"
 	"github.com/kairos-io/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -11,26 +10,19 @@ var createUkify = &cobra.Command{
 	Use:   "create",
 	Short: "Create a uki file",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		signer, err := pesign.NewPCRSigner(viper.GetString("pcr-key"))
-		if err != nil {
-			return err
-		}
-		sbSigner, err := pesign.NewSecureBootSigner(viper.GetString("sb-cert"), viper.GetString("sb-key"))
-		if err != nil {
-			return err
-		}
 		builder := &uki.Builder{
-			Arch:             viper.GetString("arch"),
-			Version:          viper.GetString("version"),
-			SdStubPath:       viper.GetString("sd-stub-path"),
-			SdBootPath:       viper.GetString("sd-boot-path"),
-			KernelPath:       viper.GetString("kernel-path"),
-			InitrdPath:       viper.GetString("initrd-path"),
-			Cmdline:          viper.GetString("cmdline"),
-			OutSdBootPath:    viper.GetString("output-sdboot"),
-			OutUKIPath:       viper.GetString("output-uki"),
-			PCRSigner:        signer,
-			SecureBootSigner: sbSigner,
+			Arch:          viper.GetString("arch"),
+			Version:       viper.GetString("version"),
+			SdStubPath:    viper.GetString("sd-stub-path"),
+			SdBootPath:    viper.GetString("sd-boot-path"),
+			KernelPath:    viper.GetString("kernel-path"),
+			InitrdPath:    viper.GetString("initrd-path"),
+			Cmdline:       viper.GetString("cmdline"),
+			OutSdBootPath: viper.GetString("output-sdboot"),
+			OutUKIPath:    viper.GetString("output-uki"),
+			PCRKey:        viper.GetString("pcr-key"),
+			SBKey:         viper.GetString("sb-key"),
+			SBCert:        viper.GetString("sb-cert"),
 		}
 
 		if viper.GetString("os-release") != "" {
