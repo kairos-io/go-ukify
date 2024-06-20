@@ -6,7 +6,6 @@
 package uki
 
 import (
-	"errors"
 	"fmt"
 	"github.com/kairos-io/go-ukify/pkg/types"
 	"log"
@@ -94,9 +93,7 @@ func (builder *Builder) Build() error {
 	}
 
 	if builder.PCRSigner == nil {
-		if builder.PCRKey == "" {
-			return errors.New("no PCR signer or PCRKey available")
-		} else {
+		if builder.PCRKey != "" {
 			signer, err := pesign.NewPCRSigner(builder.PCRKey)
 			if err != nil {
 				return err
@@ -187,15 +184,32 @@ func (builder *Builder) Build() error {
 		builder.Logger.Info("Signing UKI")
 		err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
 		if err == nil {
-			builder.Logger.Info("Signed UKI")
+			builder.Logger.Info(fmt.Sprintf("Signed UKI at %s", builder.OutUKIPath))
 		}
 	} else {
-		builder.Logger.Info("Not signing UKI")
+		// Move it to final place as we will remove the scratch dir
+		fileRead, err := os.ReadFile(builder.unsignedUKIPath)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1), fileRead, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		builder.Logger.Info(fmt.Sprintf("Unsigned UKI at %s", strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1)))
 	}
 
 	return err
 }
 
+// sbSignEnabled let us know if we have to sign the sd-boot and uki final file
+// Checks if we have a signer or a key/cert pair to sign
 func (builder *Builder) sbSignEnabled() bool {
 	return builder.SecureBootSigner != nil || (builder.SBKey != "" && builder.SBCert != "")
+}
+
+// pcrSignEnabled let us know if we have to sign the measurements
+// Checks if we have a pcr signer or a pcrkey
+func (builder *Builder) pcrSignEnabled() bool {
+	return builder.PCRSigner != nil || builder.PCRKey != ""
 }

@@ -86,7 +86,7 @@ var _ = Describe("PCR tests", func() {
 		Describe("CalculateBankData", func() {
 			It("Calculates the policy hash for empty sections", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
-				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
@@ -97,7 +97,7 @@ var _ = Describe("PCR tests", func() {
 			It("Does not calculate the same policy hash for a different PCR", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
 				// Using PCR13 instead of PCR11
-				data, err := CalculateBankData(13, tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data, err := CalculateBankData(13, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
@@ -108,7 +108,7 @@ var _ = Describe("PCR tests", func() {
 			It("Policy hash doesnt match when changing the sections", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
 
-				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data, err := CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
@@ -119,7 +119,7 @@ var _ = Describe("PCR tests", func() {
 				sectionsData = SectionsData([]types.UkiSection{
 					cmdlineSection,
 				})
-				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
@@ -131,7 +131,7 @@ var _ = Describe("PCR tests", func() {
 					cmdlineSection,
 					unameSection,
 				})
-				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data, err = CalculateBankData(11, tpm2.TPMAlgSHA256, sectionsData, pcrsigner, true)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
 				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))

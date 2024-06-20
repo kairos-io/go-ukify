@@ -15,8 +15,8 @@ var createUkify = &cobra.Command{
 			Version:       viper.GetString("version"),
 			SdStubPath:    viper.GetString("sd-stub-path"),
 			SdBootPath:    viper.GetString("sd-boot-path"),
-			KernelPath:    viper.GetString("kernel-path"),
-			InitrdPath:    viper.GetString("initrd-path"),
+			KernelPath:    viper.GetString("kernel"),
+			InitrdPath:    viper.GetString("initrd"),
 			Cmdline:       viper.GetString("cmdline"),
 			OutSdBootPath: viper.GetString("output-sdboot"),
 			OutUKIPath:    viper.GetString("output-uki"),
@@ -38,8 +38,8 @@ func init() {
 	createUkify.Flags().String("version", "", "Version.")
 	createUkify.Flags().StringP("sd-stub-path", "s", "", "Path to the sd-stub.")
 	createUkify.Flags().StringP("sd-boot-path", "b", "", "Path to the sd-boot.")
-	createUkify.Flags().StringP("kernel-path", "k", "", "Path to the kernel image.")
-	createUkify.Flags().StringP("initrd-path", "i", "", "Path to the initrd image.")
+	createUkify.Flags().StringP("kernel", "k", "", "Path to the kernel image.")
+	createUkify.Flags().StringP("initrd", "i", "", "Path to the initrd image.")
 	createUkify.Flags().StringP("cmdline", "c", "", "Kernel cmdline.")
 	createUkify.Flags().StringP("os-release", "o", "", "os-release file.")
 	createUkify.Flags().String("sb-cert", "", "SecureBoot certificate to sign efi files with.")
@@ -49,9 +49,8 @@ func init() {
 	createUkify.Flags().StringP("output-uki", "", "uki.signed.efi", "uki artifact output.")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
-	_ = createUkify.MarkFlagRequired("sd-boot-path")
-	_ = createUkify.MarkFlagRequired("initrd-path")
-	_ = createUkify.MarkFlagRequired("pcr-key")
+	_ = createUkify.MarkFlagRequired("initrd")
+	_ = createUkify.MarkFlagRequired("kernel")
 	_ = viper.BindPFlags(createUkify.Flags())
 
 	rootCmd.AddCommand(createUkify)

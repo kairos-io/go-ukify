@@ -8,20 +8,28 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/google/go-tpm/tpm2"
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
-func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey types.RSAKey) ([]types.BankData, error) {
+func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey types.RSAKey, sign bool) ([]types.BankData, error) {
 	// get fingerprint of public key
-	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
+	var pubKeyFingerprint [32]byte
+	if sign == true && rsaKey == nil {
+		return nil, errors.New("asked to sign the measurements but nil RSAKey passed")
+	}
+	if rsaKey != nil {
+		pubKeyFingerprint = sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
+	}
 
 	hashAlg, err := alg.Hash()
 	if err != nil {
@@ -74,84 +82,35 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		hash := hashData.Hash()
 		slog.Debug("Expected Hash calculated", "hash", hex.EncodeToString(hash), "alg", hashAlg.String(), "phase", phaseInfo.Phase)
 
-		policyPCR, err := CalculatePolicy(hash, pcrSelection)
-
-		if err != nil {
-			return nil, err
+		if !sign {
+			slog.Info(fmt.Sprintf("%s:%d:%s=%s", phaseInfo.Phase, pcrNumber, strings.ToLower(hashAlg.String()), hex.EncodeToString(hash)))
 		}
 
-		sigData, err := Sign(policyPCR, hashAlg, rsaKey)
-		if err != nil {
-			return nil, err
+		// TODO: Split this into its own function
+		if sign {
+			policyPCR, err := CalculatePolicy(hash, pcrSelection)
+
+			if err != nil {
+				return nil, err
+			}
+
+			sigData, err := Sign(policyPCR, hashAlg, rsaKey)
+			if err != nil {
+				return nil, err
+			}
+
+			slog.Debug("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
+			slog.Debug("signed policy", "pol", sigData.Digest)
+			slog.Debug("signed policy", "Sig", sigData.SignatureBase64)
+
+			banks = append(banks, types.BankData{
+				PCRs: []int{pcrNumber},
+				PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
+				Sig:  sigData.SignatureBase64,
+				Pol:  sigData.Digest,
+			})
 		}
-
-		slog.Debug("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
-		slog.Debug("signed policy", "pol", sigData.Digest)
-		slog.Debug("signed policy", "Sig", sigData.SignatureBase64)
-
-		banks = append(banks, types.BankData{
-			PCRs: []int{pcrNumber},
-			PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
-			Sig:  sigData.SignatureBase64,
-			Pol:  sigData.Digest,
-		})
 	}
-
-	return banks, nil
-}
-
-func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsaKey types.RSAKey) ([]types.BankData, error) {
-	// get fingerprint of public key
-	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
-
-	hashAlg, err := alg.Hash()
-	if err != nil {
-		return nil, err
-	}
-
-	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
-	}
-
-	pcrSelection := tpm2.TPMLPCRSelection{
-		PCRSelections: []tpm2.TPMSPCRSelection{
-			{
-				Hash:      alg,
-				PCRSelect: pcrSelector,
-			},
-		},
-	}
-
-	hashData := NewDigest(hashAlg)
-
-	sectionData, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	hashData.Extend(sectionData)
-
-	banks := make([]types.BankData, 0)
-
-	hash := hashData.Hash()
-
-	policyPCR, err := CalculatePolicy(hash, pcrSelection)
-	if err != nil {
-		return nil, err
-	}
-
-	sigData, err := Sign(policyPCR, hashAlg, rsaKey)
-	if err != nil {
-		return nil, err
-	}
-
-	banks = append(banks, types.BankData{
-		PCRs: []int{pcrNumber},
-		PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
-		Sig:  sigData.SignatureBase64,
-		Pol:  sigData.Digest,
-	})
 
 	return banks, nil
 }

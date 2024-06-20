@@ -25,6 +25,7 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey types.RSAKey, PCR int, 
 	data := &types.PCRData{}
 	logger.Debug("Generating PCR data", "sections", sectionsData)
 
+	// TODO: unduplicate this or better, move it to a constant?
 	for _, algo := range []struct {
 		alg            tpm2.TPMAlgID
 		bankDataSetter *[]types.BankData
@@ -46,7 +47,7 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey types.RSAKey, PCR int, 
 			bankDataSetter: &data.SHA512,
 		},
 	} {
-		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, rsaKey)
+		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, rsaKey, true)
 		if err != nil {
 			return nil, err
 		}
@@ -55,6 +56,49 @@ func GenerateSignedPCR(sectionsData SectionsData, rsaKey types.RSAKey, PCR int, 
 	}
 
 	return data, nil
+}
+
+// GenerateMeasurements generates the PCR measurements for a given set of UKI file sections.
+func GenerateMeasurements(sectionsData SectionsData, PCR int, logger *slog.Logger) {
+	data := &types.PCRData{}
+	logger.Debug("Generating PCR data", "sections", sectionsData)
+	logger.Info("Not signing data, just outputting it to stdout")
+	logger.Info("legend: <PHASE:PCR:ALGORITHM=HASH>")
+
+	// Rework to do:
+	// for phase in ordered phase
+	// then inside the loop
+	// for alg in algs
+	// Either that, or store everything in a nicer struct and then
+	// clean it up before
+	for _, algo := range []struct {
+		alg            tpm2.TPMAlgID
+		bankDataSetter *[]types.BankData
+	}{
+		{
+			alg:            tpm2.TPMAlgSHA1,
+			bankDataSetter: &data.SHA1,
+		},
+		{
+			alg:            tpm2.TPMAlgSHA256,
+			bankDataSetter: &data.SHA256,
+		},
+		{
+			alg:            tpm2.TPMAlgSHA384,
+			bankDataSetter: &data.SHA384,
+		},
+		{
+			alg:            tpm2.TPMAlgSHA512,
+			bankDataSetter: &data.SHA512,
+		},
+	} {
+		bankData, err := pcr.CalculateBankData(PCR, algo.alg, sectionsData, nil, false)
+		if err != nil {
+			return
+		}
+
+		*algo.bankDataSetter = bankData
+	}
 }
 
 func PrintSystemdMeasurements(phase string, sectionsData SectionsData, privKey string) {

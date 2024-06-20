@@ -175,6 +175,9 @@ func (builder *Builder) generateSBAT() error {
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
+	if !builder.pcrSignEnabled() {
+		return nil
+	}
 	builder.Logger.Debug("Getting Public PCR key")
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(builder.PCRSigner.PublicRSAKey())
 	if err != nil {
@@ -221,7 +224,7 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
-	builder.Logger.Info("Generating PCR measurements and signed policy")
+	builder.Logger.Info("Generating PCR measurements")
 	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := xslices.ToMap(
 		xslices.Filter(builder.sections,
@@ -233,33 +236,39 @@ func (builder *Builder) generatePCRSig() error {
 			return s.Name, s.Path
 		})
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
-	if err != nil {
-		return err
+	// If we have the signer sign the measurements and attach them to the uki file
+	if builder.pcrSignEnabled() {
+		builder.Logger.Info("Generating signed policy")
+		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
+		if err != nil {
+			return err
+		}
+		pcrSignatureData, err := json.Marshal(pcrData)
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(builder.scratchDir, "pcrpsig")
+
+		if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
+			return err
+		}
+
+		builder.sections = append(builder.sections,
+			types.UkiSection{
+				Name:   constants.PCRSig,
+				Path:   path,
+				Append: true,
+			},
+		)
+	} else {
+		// Otherwise just measure and print the measurements
+		measure.GenerateMeasurements(sectionsData, constants.UKIPCR, builder.Logger)
 	}
 
 	if builder.LogLevel == "debug" {
 		measure.PrintSystemdMeasurements("enter-initrd:leave-initrd:sysinit:ready", sectionsData, builder.PCRKey)
 	}
-
-	pcrSignatureData, err := json.Marshal(pcrData)
-	if err != nil {
-		return err
-	}
-
-	path := filepath.Join(builder.scratchDir, "pcrpsig")
-
-	if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
-		return err
-	}
-
-	builder.sections = append(builder.sections,
-		types.UkiSection{
-			Name:   constants.PCRSig,
-			Path:   path,
-			Append: true,
-		},
-	)
 
 	return nil
 }
