@@ -16,14 +16,19 @@ uki-artifacts:
 build:
     FROM golang:1.22
     WORKDIR build
+    COPY go.mod .
+    COPY go.sum .
+    RUN go mod download
     COPY . .
     RUN go build -o ukify main.go
     SAVE ARTIFACT ukify ukify
 
 test:
     FROM fedora
+    RUN dnf install -y systemd-boot
     WORKDIR build
     COPY +uki-artifacts/kernel kernel
     COPY +uki-artifacts/initrd initrd
     COPY +build/ukify ukify
-    RUN ./ukify
+    COPY pkg/measure/pcr/testdata/private.pem private.pem
+    RUN ./ukify --debug create -i initrd -k kernel -b /usr/lib/systemd/boot/efi/systemd-bootx64.efi -s /usr/lib/systemd/boot/efi/linuxx64.efi.stub -p private.pem
