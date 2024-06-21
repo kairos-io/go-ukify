@@ -103,12 +103,21 @@ var _ = Describe("PCR tests", func() {
 					}
 					*alg.BankDataSetter = banks
 				}
-
-				Expect(len(data.SHA1)).ToNot(Equal(0))
-				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data.SHA1[0].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
+				// old method
+				data2sha1, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA1, sectionsData, pcrsigner)
+				data2sha256, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data2sha384, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA384, sectionsData, pcrsigner)
+				data2sha512, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA512, sectionsData, pcrsigner)
+				Expect(len(data.SHA256)).ToNot(Equal(0))
+				Expect(data.SHA256[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA256[1].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA256[2].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA256[3].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
+				// Check that new methods return the same data as before
+				Expect(data.SHA1).To(Equal(data2sha1))
+				Expect(data.SHA256).To(Equal(data2sha256))
+				Expect(data.SHA384).To(Equal(data2sha384))
+				Expect(data.SHA512).To(Equal(data2sha512))
 			})
 			It("Does not calculate the same policy hash for a different PCR", func() {
 				sectionsData := SectionsData([]types.UkiSection{})

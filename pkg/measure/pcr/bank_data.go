@@ -19,6 +19,7 @@ import (
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
+// Deprecated: Use MeasureSections + MeasurePhase + SignPolicy for more fine grained control
 func CalculateBankData(pcrNumber int, phases []types.PhaseInfo, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey types.RSAKey) ([]types.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
