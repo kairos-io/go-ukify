@@ -5,7 +5,7 @@ import (
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/pesign"
 	"github.com/kairos-io/go-ukify/pkg/types"
-	"github.com/siderolabs/gen/xslices"
+	"github.com/kairos-io/go-ukify/pkg/utils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,22 +17,6 @@ import (
 func TestSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "PCR test Suite")
-}
-
-// SectionsData transforms a []types.UkiSection into a map[constants.Section]string
-// based on types.UkiSection.Measure being true
-// So it obtains a list of sections that have to be measured
-// TODO: use it everywhere instead of just under tests?
-func SectionsData(sections []types.UkiSection) map[constants.Section]string {
-	return xslices.ToMap(
-		xslices.Filter(sections,
-			func(s types.UkiSection) bool {
-				return s.Measure
-			},
-		),
-		func(s types.UkiSection) (constants.Section, string) {
-			return s.Name, s.Path
-		})
 }
 
 // Hashes precalculated manually and with other tools
@@ -84,10 +68,8 @@ var _ = Describe("PCR tests", func() {
 	})
 	Describe("Bank", func() {
 		Describe("CalculateBankData", func() {
-			It("Calculates the policy hash for empty sections", Focus, func() {
-				sectionsData := SectionsData([]types.UkiSection{})
-				//data, err := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
-				Expect(err).ToNot(HaveOccurred())
+			It("Calculates the policy hash for empty sections", func() {
+				sectionsData := utils.SectionsData([]types.UkiSection{})
 				var data *types.PCRData
 				var algos []types.Algorithm
 				data, algos = types.GetTPMALGorithm()
@@ -120,62 +102,145 @@ var _ = Describe("PCR tests", func() {
 				Expect(data.SHA512).To(Equal(data2sha512))
 			})
 			It("Does not calculate the same policy hash for a different PCR", func() {
-				sectionsData := SectionsData([]types.UkiSection{})
+				sectionsData := utils.SectionsData([]types.UkiSection{})
 				// Using PCR13 instead of PCR11
 				var data *types.PCRData
-				alg := tpm2.TPMAlgSHA256
-				banks := make([]types.BankData, 0)
-				hash, err := MeasureSections(alg.Alg, sectionsData)
-				Expect(err).ToNot(HaveOccurred())
-				for _, phase := range types.OrderedPhases() {
-					hash = MeasurePhase(phase, alg.Alg, hash)
-					bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+				var algos []types.Algorithm
+				data, algos = types.GetTPMALGorithm()
+				for _, alg := range algos {
+					banks := make([]types.BankData, 0)
+					hash, err := MeasureSections(alg.Alg, sectionsData)
 					Expect(err).ToNot(HaveOccurred())
-					banks = append(banks, bank)
+					for _, phase := range types.OrderedPhases() {
+						hash = MeasurePhase(phase, alg.Alg, hash)
+						bank, err := SignPolicy(13, alg.Alg, pcrsigner, hash)
+						Expect(err).ToNot(HaveOccurred())
+						banks = append(banks, bank)
+					}
+					*alg.BankDataSetter = banks
 				}
-				*alg.BankDataSetter = banks
-
-				data, err := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(data)).ToNot(Equal(0))
-				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+				// old method
+				data2sha1, _ := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA1, sectionsData, pcrsigner)
+				data2sha256, _ := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data2sha384, _ := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA384, sectionsData, pcrsigner)
+				data2sha512, _ := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA512, sectionsData, pcrsigner)
+				Expect(len(data.SHA256)).ToNot(Equal(0))
+				// As its generated for PCR13 it should not match the data that we know for pcr 11
+				Expect(data.SHA256[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA256[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA256[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA256[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+				// Check that new methods return the same data as before
+				Expect(data.SHA1).To(Equal(data2sha1))
+				Expect(data.SHA256).To(Equal(data2sha256))
+				Expect(data.SHA384).To(Equal(data2sha384))
+				Expect(data.SHA512).To(Equal(data2sha512))
 			})
-			It("Policy hash doesnt match when changing the sections", func() {
-				sectionsData := SectionsData([]types.UkiSection{})
+			It("Policy hash doesn't match when changing the sections", func() {
+				sectionsData := utils.SectionsData([]types.UkiSection{})
+				var data *types.PCRData
+				var algos []types.Algorithm
+				data, algos = types.GetTPMALGorithm()
+				for _, alg := range algos {
+					banks := make([]types.BankData, 0)
+					hash, err := MeasureSections(alg.Alg, sectionsData)
+					Expect(err).ToNot(HaveOccurred())
+					for _, phase := range types.OrderedPhases() {
+						hash = MeasurePhase(phase, alg.Alg, hash)
+						bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+						Expect(err).ToNot(HaveOccurred())
+						banks = append(banks, bank)
+					}
+					*alg.BankDataSetter = banks
+				}
+				// old method
+				data2sha1, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA1, sectionsData, pcrsigner)
+				data2sha256, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data2sha384, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA384, sectionsData, pcrsigner)
+				data2sha512, _ := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA512, sectionsData, pcrsigner)
+				Expect(len(data.SHA256)).ToNot(Equal(0))
+				Expect(data.SHA256[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA256[1].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA256[2].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA256[3].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
+				// Check that new methods return the same data as before
+				Expect(data.SHA1).To(Equal(data2sha1))
+				Expect(data.SHA256).To(Equal(data2sha256))
+				Expect(data.SHA384).To(Equal(data2sha384))
+				Expect(data.SHA512).To(Equal(data2sha512))
 
-				data, err := CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(data)).ToNot(Equal(0))
-				Expect(data[0].Pol).To(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data[1].Pol).To(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data[2].Pol).To(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data[3].Pol).To(Equal(knowPCR11PolicyHashFourthPhase))
-
-				sectionsData = SectionsData([]types.UkiSection{
+				// Change sectionData and calculate again
+				sectionsData = utils.SectionsData([]types.UkiSection{
 					cmdlineSection,
 				})
-				data, err = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(data)).ToNot(Equal(0))
-				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+				data, algos = types.GetTPMALGorithm()
+				for _, alg := range algos {
+					banks := make([]types.BankData, 0)
+					hash, err := MeasureSections(alg.Alg, sectionsData)
+					Expect(err).ToNot(HaveOccurred())
+					for _, phase := range types.OrderedPhases() {
+						hash = MeasurePhase(phase, alg.Alg, hash)
+						bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+						Expect(err).ToNot(HaveOccurred())
+						banks = append(banks, bank)
+					}
+					*alg.BankDataSetter = banks
+				}
 
-				sectionsData = SectionsData([]types.UkiSection{
+				Expect(len(data.SHA256)).ToNot(Equal(0))
+				Expect(data.SHA256[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA256[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA256[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA256[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+
+				// old method
+				data2sha1, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA1, sectionsData, pcrsigner)
+				data2sha256, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data2sha384, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA384, sectionsData, pcrsigner)
+				data2sha512, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA512, sectionsData, pcrsigner)
+
+				// Check that new methods return the same data as before
+				Expect(data.SHA1).To(Equal(data2sha1))
+				Expect(data.SHA256).To(Equal(data2sha256))
+				Expect(data.SHA384).To(Equal(data2sha384))
+				Expect(data.SHA512).To(Equal(data2sha512))
+
+				// And extend with another sections
+				sectionsData = utils.SectionsData([]types.UkiSection{
 					cmdlineSection,
 					unameSection,
 				})
-				data, err = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(data)).ToNot(Equal(0))
-				Expect(data[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
-				Expect(data[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
-				Expect(data[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
-				Expect(data[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+				data, algos = types.GetTPMALGorithm()
+				for _, alg := range algos {
+					banks := make([]types.BankData, 0)
+					hash, err := MeasureSections(alg.Alg, sectionsData)
+					Expect(err).ToNot(HaveOccurred())
+					for _, phase := range types.OrderedPhases() {
+						hash = MeasurePhase(phase, alg.Alg, hash)
+						bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+						Expect(err).ToNot(HaveOccurred())
+						banks = append(banks, bank)
+					}
+					*alg.BankDataSetter = banks
+				}
+
+				Expect(len(data.SHA256)).ToNot(Equal(0))
+				Expect(data.SHA256[0].Pol).ToNot(Equal(knowPCR11PolicyHashFirstPhase))
+				Expect(data.SHA256[1].Pol).ToNot(Equal(knowPCR11PolicyHashSecondPhase))
+				Expect(data.SHA256[2].Pol).ToNot(Equal(knowPCR11PolicyHashThirdPhase))
+				Expect(data.SHA256[3].Pol).ToNot(Equal(knowPCR11PolicyHashFourthPhase))
+
+				// old method
+				data2sha1, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA1, sectionsData, pcrsigner)
+				data2sha256, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
+				data2sha384, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA384, sectionsData, pcrsigner)
+				data2sha512, _ = CalculateBankData(11, types.OrderedPhases(), tpm2.TPMAlgSHA512, sectionsData, pcrsigner)
+
+				// Check that new methods return the same data as before
+				Expect(data.SHA1).To(Equal(data2sha1))
+				Expect(data.SHA256).To(Equal(data2sha256))
+				Expect(data.SHA384).To(Equal(data2sha384))
+				Expect(data.SHA512).To(Equal(data2sha512))
 
 			})
 

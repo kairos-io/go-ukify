@@ -10,7 +10,7 @@ import (
 	"encoding/pem"
 	"github.com/kairos-io/go-ukify/internal/common"
 	"github.com/kairos-io/go-ukify/pkg/types"
-	"github.com/siderolabs/gen/xslices"
+	"github.com/kairos-io/go-ukify/pkg/utils"
 	"os"
 	"path/filepath"
 
@@ -225,15 +225,7 @@ func (builder *Builder) generateKernel() error {
 func (builder *Builder) generatePCRSig() error {
 	builder.Logger.Info("Generating PCR measurements")
 	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
-	sectionsData := xslices.ToMap(
-		xslices.Filter(builder.sections,
-			func(s types.UkiSection) bool {
-				return s.Measure
-			},
-		),
-		func(s types.UkiSection) (constants.Section, string) {
-			return s.Name, s.Path
-		})
+	sectionsData := utils.SectionsData(builder.sections)
 
 	// If we have the signer sign the measurements and attach them to the uki file
 	if builder.pcrSignEnabled() {

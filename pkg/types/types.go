@@ -3,9 +3,10 @@ package types
 import (
 	"crypto"
 	"crypto/rsa"
+	"strings"
+
 	"github.com/google/go-tpm/tpm2"
 	"github.com/kairos-io/go-ukify/pkg/constants"
-	"strings"
 )
 
 // PCRData is the data structure for PCR signature json.

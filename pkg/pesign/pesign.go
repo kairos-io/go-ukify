@@ -12,13 +12,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/kairos-io/go-ukify/pkg/types"
 	"io"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/foxboron/go-uefi/efi"
+	"github.com/kairos-io/go-ukify/pkg/types"
 )
 
 // Signer sigs PE (portable executable) files.
