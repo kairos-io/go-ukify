@@ -7,7 +7,7 @@ require (
 	github.com/google/go-tpm v0.9.1-0.20230914180155-ee6cbcd136f8
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.18.2
 )
 
