@@ -122,6 +122,19 @@ var _ = Describe("PCR tests", func() {
 			It("Does not calculate the same policy hash for a different PCR", func() {
 				sectionsData := SectionsData([]types.UkiSection{})
 				// Using PCR13 instead of PCR11
+				var data *types.PCRData
+				alg := tpm2.TPMAlgSHA256
+				banks := make([]types.BankData, 0)
+				hash, err := MeasureSections(alg.Alg, sectionsData)
+				Expect(err).ToNot(HaveOccurred())
+				for _, phase := range types.OrderedPhases() {
+					hash = MeasurePhase(phase, alg.Alg, hash)
+					bank, err := SignPolicy(11, alg.Alg, pcrsigner, hash)
+					Expect(err).ToNot(HaveOccurred())
+					banks = append(banks, bank)
+				}
+				*alg.BankDataSetter = banks
+
 				data, err := CalculateBankData(13, types.OrderedPhases(), tpm2.TPMAlgSHA256, sectionsData, pcrsigner)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(data)).ToNot(Equal(0))
