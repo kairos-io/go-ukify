@@ -7,13 +7,13 @@ package uki
 
 import (
 	"fmt"
-	"github.com/kairos-io/go-ukify/pkg/types"
 	"log"
 	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/kairos-io/go-ukify/pkg/pesign"
+	"github.com/kairos-io/go-ukify/pkg/types"
 )
 
 // Builder is a UKI file builder.
@@ -40,7 +40,7 @@ type Builder struct {
 	Phases []types.PhaseInfo
 
 	// SecureBoot certificate and signer.
-	SecureBootSigner pesign.CertificateSigner
+	SecureBootSigner *pesign.Signer
 	// SecureBoot key
 	SBKey string
 	// SecureBoot cert
@@ -60,14 +60,9 @@ type Builder struct {
 	// Path to the output UKI file.
 	OutUKIPath string
 
-	// Logger
-	Logger   *slog.Logger
-	LogLevel string
-
 	// fields initialized during build
 	sections        []types.UkiSection
 	scratchDir      string
-	peSigner        *pesign.Signer
 	unsignedUKIPath string
 }
 
@@ -80,20 +75,6 @@ type Builder struct {
 //   - assemble the final UKI file starting from sd-stub and appending generated section.
 func (builder *Builder) Build() error {
 	var err error
-
-	if builder.Logger == nil {
-		builder.Logger = slog.Default()
-	}
-	switch strings.ToLower(builder.LogLevel) {
-	case "debug":
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	case "warn":
-		slog.SetLogLoggerLevel(slog.LevelWarn)
-	case "error":
-		slog.SetLogLoggerLevel(slog.LevelError)
-	default:
-		slog.SetLogLoggerLevel(slog.LevelInfo)
-	}
 
 	if builder.PCRSigner == nil {
 		if builder.PCRKey != "" {
@@ -112,7 +93,11 @@ func (builder *Builder) Build() error {
 	if builder.sbSignEnabled() {
 		if builder.SecureBootSigner == nil {
 			if builder.SBCert != "" && builder.SBKey != "" {
-				sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
+				sb, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
+				if err != nil {
+					return err
+				}
+				sbSigner, err := pesign.NewSigner(sb)
 				if err != nil {
 					return err
 				}
@@ -136,21 +121,16 @@ func (builder *Builder) Build() error {
 	if builder.SdBootPath != "" && builder.sbSignEnabled() {
 		slog.Info("Signing systemd-boot", "path", builder.SdBootPath)
 
-		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
-		if err != nil {
-			return fmt.Errorf("error initializing signer: %w", err)
-		}
-
 		// sign sd-boot
-		if err = builder.peSigner.Sign(builder.SdBootPath, builder.OutSdBootPath, builder.Logger); err != nil {
+		if err = builder.SecureBootSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
 		slog.Info("Signed systemd-boot", "path", builder.OutSdBootPath)
 	} else {
-		builder.Logger.Info("Not signing systemd-boot")
+		slog.Info("Not signing systemd-boot")
 	}
 
-	builder.Logger.Info("Generating UKI sections")
+	slog.Info("Generating UKI sections")
 
 	// generate and build list of all sections
 	for _, generateSection := range []func() error{
@@ -171,23 +151,23 @@ func (builder *Builder) Build() error {
 		}
 	}
 
-	builder.Logger.Info("Generated UKI sections")
+	slog.Info("Generated UKI sections")
 
-	builder.Logger.Info("Assembling UKI")
+	slog.Info("Assembling UKI")
 
 	// assemble the final UKI file
 	if err = builder.assemble(); err != nil {
 		return fmt.Errorf("error assembling UKI: %w", err)
 	}
 
-	builder.Logger.Info("Assembled UKI")
+	slog.Info("Assembled UKI")
 
 	// sign the UKI file if signing is enabled
 	if builder.sbSignEnabled() {
-		builder.Logger.Info("Signing UKI")
-		err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
+		slog.Info("Signing UKI")
+		err = builder.SecureBootSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath)
 		if err == nil {
-			builder.Logger.Info(fmt.Sprintf("Signed UKI at %s", builder.OutUKIPath))
+			slog.Info(fmt.Sprintf("Signed UKI at %s", builder.OutUKIPath))
 		}
 	} else {
 		// Move it to final place as we will remove the scratch dir
@@ -199,7 +179,7 @@ func (builder *Builder) Build() error {
 		if err != nil {
 			return err
 		}
-		builder.Logger.Info(fmt.Sprintf("Unsigned UKI at %s", strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1)))
+		slog.Info(fmt.Sprintf("Unsigned UKI at %s", strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1)))
 	}
 
 	return err

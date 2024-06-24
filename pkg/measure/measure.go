@@ -22,9 +22,9 @@ import (
 type SectionsData map[constants.Section]string
 
 // GenerateSignedPCR generates the PCR signed data for a given set of UKI file sections.
-func GenerateSignedPCR(sectionsData SectionsData, phases []types.PhaseInfo, rsaKey types.RSAKey, PCR int, logger *slog.Logger) (*types.PCRData, error) {
+func GenerateSignedPCR(sectionsData SectionsData, phases []types.PhaseInfo, rsaKey types.RSAKey, PCR int) (*types.PCRData, error) {
 	data := &types.PCRData{}
-	logger.Debug("Generating PCR data", "sections", sectionsData)
+	slog.Debug("Generating PCR data", "sections", sectionsData)
 
 	data, algos := types.GetTPMALGorithm()
 	for _, alg := range algos {
@@ -48,10 +48,10 @@ func GenerateSignedPCR(sectionsData SectionsData, phases []types.PhaseInfo, rsaK
 }
 
 // GenerateMeasurements generates the PCR measurements for a given set of UKI file sections and phases
-func GenerateMeasurements(sectionsData SectionsData, phases []types.PhaseInfo, PCR int, logger *slog.Logger) {
-	logger.Debug("Generating PCR data", "sections", sectionsData)
-	logger.Info("Not signing data, just outputting it to stdout")
-	logger.Info("legend: <PHASE:PCR:ALGORITHM=HASH>")
+func GenerateMeasurements(sectionsData SectionsData, phases []types.PhaseInfo, PCR int) {
+	slog.Debug("Generating PCR data", "sections", sectionsData)
+	slog.Info("Not signing data, just outputting it to stdout")
+	slog.Info("legend: <PHASE:PCR:ALGORITHM=HASH>")
 
 	_, algos := types.GetTPMALGorithm()
 	for _, alg := range algos {
@@ -59,7 +59,7 @@ func GenerateMeasurements(sectionsData SectionsData, phases []types.PhaseInfo, P
 		for _, phase := range phases {
 			pcr.MeasurePhase(phase, alg.Alg, hash)
 			al, _ := alg.Alg.Hash()
-			logger.Info(fmt.Sprintf("%s:%d:%s=%s", phase.Phase, PCR, al.String(), hex.EncodeToString(hash.Hash())))
+			slog.Info(fmt.Sprintf("%s:%d:%s=%s", phase.Phase, PCR, al.String(), hex.EncodeToString(hash.Hash())))
 		}
 
 	}
