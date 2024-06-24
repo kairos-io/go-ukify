@@ -13,12 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 
-	"github.com/foxboron/go-uefi/efi"
 	"github.com/kairos-io/go-ukify/pkg/types"
+	"github.com/kairos-io/go-ukify/pkg/utils"
 )
 
 // Signer sigs PE (portable executable) files.
@@ -40,21 +39,20 @@ func NewSigner(provider CertificateSigner) (*Signer, error) {
 }
 
 // Sign signs the input file and writes the output to the output file.
-func (s *Signer) Sign(input, output string, logger *slog.Logger) error {
-	logger.Debug("Signing file", "input", input, "output", output)
+func (s *Signer) Sign(input, output string) error {
+	slog.Debug("Signing file", "input", input, "output", output)
 	unsigned, err := os.ReadFile(input)
 	if err != nil {
-		log.Fatalf("Failed to open %s", input)
+		slog.Error(fmt.Sprintf("Failed to open %s", input))
 		return err
 	}
-
-	signed, err := efi.SignEFIExecutable(s.provider.Signer(), s.provider.Certificate(), unsigned)
+	signed, err := utils.SignEFIExecutable(s.provider.Signer(), s.provider.Certificate(), unsigned)
 	if err != nil {
-		log.Fatalf("Failed to open %s", input)
+		slog.Error(fmt.Sprintf("Failed to open %s", input))
 		return err
 	}
 
-	return os.WriteFile(output, signed, 0o600)
+	return os.WriteFile(output, signed, 0o777)
 }
 
 // Verify interface.

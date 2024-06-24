@@ -11,6 +11,7 @@ import (
 	"github.com/kairos-io/go-ukify/internal/common"
 	"github.com/kairos-io/go-ukify/pkg/types"
 	"github.com/kairos-io/go-ukify/pkg/utils"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -21,11 +22,11 @@ import (
 func (builder *Builder) generateOSRel() error {
 	var path string
 	if builder.OsRelease != "" {
-		builder.Logger.Debug("Using existing os-release", "path", builder.OsRelease)
+		slog.Debug("Using existing os-release", "path", builder.OsRelease)
 		path = builder.OsRelease
 	} else {
 		// Generate a simplified os-release
-		builder.Logger.Debug("Generating a new os-release")
+		slog.Debug("Generating a new os-release")
 		osRelease, err := constants.OSReleaseFor(constants.Name, builder.Version)
 		if err != nil {
 			return err
@@ -49,7 +50,7 @@ func (builder *Builder) generateOSRel() error {
 }
 
 func (builder *Builder) generateCmdline() error {
-	builder.Logger.Debug("Using cmdline", "cmdline", builder.Cmdline)
+	slog.Debug("Using cmdline", "cmdline", builder.Cmdline)
 	path := filepath.Join(builder.scratchDir, "cmdline")
 
 	if err := os.WriteFile(path, []byte(builder.Cmdline), 0o600); err != nil {
@@ -69,7 +70,7 @@ func (builder *Builder) generateCmdline() error {
 }
 
 func (builder *Builder) generateInitrd() error {
-	builder.Logger.Debug("Using initrd", "path", builder.InitrdPath)
+	slog.Debug("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
 		types.UkiSection{
 			Name:    constants.Initrd,
@@ -87,10 +88,10 @@ func (builder *Builder) generateSplash() error {
 	var data []byte
 
 	if builder.Splash != "" {
-		builder.Logger.Debug("Using splash", "file", builder.Splash)
+		slog.Debug("Using splash", "file", builder.Splash)
 		data, _ = os.ReadFile(builder.Splash)
 	} else {
-		builder.Logger.Debug("Using generic bundled splash")
+		slog.Debug("Using generic bundled splash")
 		data = common.Logo
 	}
 
@@ -120,10 +121,10 @@ func (builder *Builder) generateUname() error {
 
 	if kernelVersion == "" {
 		// we haven't got the kernel version, skip the uname section
-		builder.Logger.Info("We could not infer kernel version", "path", builder.KernelPath)
+		slog.Info("We could not infer kernel version", "path", builder.KernelPath)
 		return nil
 	} else {
-		builder.Logger.Debug("Getting uname", "version", kernelVersion, "path", builder.KernelPath)
+		slog.Debug("Getting uname", "version", kernelVersion, "path", builder.KernelPath)
 	}
 
 	path := filepath.Join(builder.scratchDir, "uname")
@@ -145,13 +146,13 @@ func (builder *Builder) generateUname() error {
 }
 
 func (builder *Builder) generateSBAT() error {
-	builder.Logger.Debug("Getting SBAT", "path", builder.SdStubPath)
+	slog.Debug("Getting SBAT", "path", builder.SdStubPath)
 	sbat, err := GetSBAT(builder.SdStubPath)
 	if err != nil {
 		return err
 	}
 
-	builder.Logger.Debug("Generated SBAT", "sbat", sbat, "path", builder.SdStubPath)
+	slog.Debug("Generated SBAT", "sbat", sbat, "path", builder.SdStubPath)
 
 	path := filepath.Join(builder.scratchDir, "sbat")
 
@@ -177,7 +178,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 	if !builder.pcrSignEnabled() {
 		return nil
 	}
-	builder.Logger.Debug("Getting Public PCR key")
+	slog.Debug("Getting Public PCR key")
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(builder.PCRSigner.PublicRSAKey())
 	if err != nil {
 		return err
@@ -208,7 +209,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 }
 
 func (builder *Builder) generateKernel() error {
-	builder.Logger.Debug("Getting kernel")
+	slog.Debug("Getting kernel")
 
 	builder.sections = append(builder.sections,
 		types.UkiSection{
@@ -223,14 +224,14 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
-	builder.Logger.Info("Generating PCR measurements")
-	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
+	slog.Info("Generating PCR measurements")
+	slog.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := utils.SectionsData(builder.sections)
 
 	// If we have the signer sign the measurements and attach them to the uki file
 	if builder.pcrSignEnabled() {
-		builder.Logger.Info("Generating signed policy")
-		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.Phases, builder.PCRSigner, constants.UKIPCR, builder.Logger)
+		slog.Info("Generating signed policy")
+		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.Phases, builder.PCRSigner, constants.UKIPCR)
 		if err != nil {
 			return err
 		}
@@ -254,11 +255,7 @@ func (builder *Builder) generatePCRSig() error {
 		)
 	} else {
 		// Otherwise just measure and print the measurements
-		measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR, builder.Logger)
-	}
-
-	if builder.LogLevel == "debug" {
-		measure.PrintSystemdMeasurements(types.PhasesToString(builder.Phases), sectionsData, builder.PCRKey)
+		measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR)
 	}
 
 	return nil
