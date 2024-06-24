@@ -5,8 +5,6 @@
 package pcr
 
 import (
-	"crypto"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -18,16 +16,12 @@ import (
 	"os"
 )
 
-// RSAKey is the input for the CalculateBankData function.
-type RSAKey interface {
-	crypto.Signer
-	PublicRSAKey() *rsa.PublicKey
-}
-
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
 // This mimics the process happening in the TPM when the UKI is being loaded.
-func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey RSAKey) ([]types.BankData, error) {
+// Deprecated: Use MeasureSections + MeasurePhase + SignPolicy for more fine grained control
+// Only used in teh tests to confirm that the new workflow returns the same data as the old one
+func CalculateBankData(pcrNumber int, phases []types.PhaseInfo, alg tpm2.TPMAlgID, sectionData map[constants.Section]string, rsaKey types.RSAKey) ([]types.BankData, error) {
 	// get fingerprint of public key
 	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
 
@@ -36,7 +30,7 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 		return nil, err
 	}
 
-	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
+	pcrSelector, err := CreateSelector([]int{pcrNumber})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
 	}
@@ -68,16 +62,10 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 
 	banks := make([]types.BankData, 0)
 
-	// TODO: Allow passing the phases by config
-	for _, phaseInfo := range types.OrderedPhases() {
+	for _, phaseInfo := range phases {
 		slog.Debug("Doing phase", "phase", phaseInfo.Phase, "alg", hashAlg.String())
 		// extend always
 		hashData.Extend([]byte(phaseInfo.Phase))
-
-		// Now sign if needed
-		if !phaseInfo.CalculateSignature {
-			continue
-		}
 
 		hash := hashData.Hash()
 		slog.Debug("Expected Hash calculated", "hash", hex.EncodeToString(hash), "alg", hashAlg.String(), "phase", phaseInfo.Phase)
@@ -103,23 +91,63 @@ func CalculateBankData(pcrNumber int, alg tpm2.TPMAlgID, sectionData map[constan
 			Sig:  sigData.SignatureBase64,
 			Pol:  sigData.Digest,
 		})
+
 	}
 
 	return banks, nil
 }
 
-func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsaKey RSAKey) ([]types.BankData, error) {
-	// get fingerprint of public key
-	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
+// MeasureSections would measure the given sections for a given TPM algorithm
+func MeasureSections(alg tpm2.TPMAlgID, sectionData map[constants.Section]string) (*Digest, error) {
+	var hashData *Digest
 
 	hashAlg, err := alg.Hash()
 	if err != nil {
-		return nil, err
+		return hashData, err
 	}
 
-	pcrSelector, err := CreateSelector([]int{constants.UKIPCR})
+	hashData = NewDigest(hashAlg)
+
+	for _, section := range constants.OrderedSections() {
+		if file := sectionData[section]; file != "" {
+			slog.Debug("Measuring section", "section", section, "alg", hashAlg.String())
+
+			sectionD, err := os.ReadFile(file)
+			if err != nil {
+				return hashData, err
+			}
+			// NULL terminated, thats why we adding the 0 at the end
+			hashData.Extend(append([]byte(section), 0))
+			hashData.Extend(sectionD)
+		}
+	}
+	return hashData, nil
+}
+
+// MeasurePhase will measure the given phase
+func MeasurePhase(phase types.PhaseInfo, alg tpm2.TPMAlgID, hashData *Digest) *Digest {
+	hashAlg, _ := alg.Hash()
+
+	// TODO: Allow passing the phases by config
+	slog.Debug("Doing phase", "phase", phase.Phase, "alg", hashAlg.String())
+	// extend always
+	hashData.Extend([]byte(phase.Phase))
+
+	hash := hashData.Hash()
+	slog.Debug("Expected Hash calculated", "hash", hex.EncodeToString(hash), "alg", hashAlg.String(), "phase", phase.Phase)
+
+	return hashData
+}
+
+// SignPolicy will calculate and sign a policy for a given Digest, PCR and algorithm
+func SignPolicy(pcrNumber int, alg tpm2.TPMAlgID, rsaKey types.RSAKey, hashData *Digest) (types.BankData, error) {
+	var bankData types.BankData
+	hash := hashData.Hash()
+	pubKeyFingerprint := sha256.Sum256(x509.MarshalPKCS1PublicKey(rsaKey.PublicRSAKey()))
+
+	pcrSelector, err := CreateSelector([]int{pcrNumber})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create PCR selection: %v", err)
+		return bankData, fmt.Errorf("failed to create PCR selection: %v", err)
 	}
 
 	pcrSelection := tpm2.TPMLPCRSelection{
@@ -131,41 +159,37 @@ func CalculateBankDataForFile(pcrNumber int, alg tpm2.TPMAlgID, file string, rsa
 		},
 	}
 
-	hashData := NewDigest(hashAlg)
-
-	sectionData, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	hashData.Extend(sectionData)
-
-	banks := make([]types.BankData, 0)
-
-	hash := hashData.Hash()
-
 	policyPCR, err := CalculatePolicy(hash, pcrSelection)
+
 	if err != nil {
-		return nil, err
+		return bankData, err
 	}
+
+	hashAlg, err := alg.Hash()
 
 	sigData, err := Sign(policyPCR, hashAlg, rsaKey)
 	if err != nil {
-		return nil, err
+		return bankData, err
 	}
 
-	banks = append(banks, types.BankData{
+	slog.Debug("signed policy", "PKFP", hex.EncodeToString(pubKeyFingerprint[:]))
+	slog.Debug("signed policy", "pol", sigData.Digest)
+	slog.Debug("signed policy", "Sig", sigData.SignatureBase64)
+
+	return types.BankData{
 		PCRs: []int{pcrNumber},
 		PKFP: hex.EncodeToString(pubKeyFingerprint[:]),
 		Sig:  sigData.SignatureBase64,
 		Pol:  sigData.Digest,
-	})
+	}, nil
 
-	return banks, nil
 }
 
 // CreateSelector converts PCR  numbers into a bitmask.
 func CreateSelector(pcrs []int) ([]byte, error) {
+	// From https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
+	// A conformant TPM SHALL allow an allocation of a minimum of 24 PCRs, 0-23, within all allocated banks
+
 	const sizeOfPCRSelect = 3
 
 	mask := make([]byte, sizeOfPCRSelect)

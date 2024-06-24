@@ -6,32 +6,15 @@
 package uki
 
 import (
-	"errors"
 	"fmt"
+	"github.com/kairos-io/go-ukify/pkg/types"
 	"log"
 	"log/slog"
 	"os"
 	"strings"
 
-	"github.com/kairos-io/go-ukify/pkg/constants"
-	"github.com/kairos-io/go-ukify/pkg/measure"
 	"github.com/kairos-io/go-ukify/pkg/pesign"
 )
-
-// section is a UKI file section.
-type section struct {
-	// Section name.
-	Name constants.Section
-	// Path to the contents of the section.
-	Path string
-	// Should the section be measured to the TPM?
-	Measure bool
-	// Should the section be appended, or is it already in the PE file.
-	Append bool
-	// Size & VMA of the section.
-	Size uint64
-	VMA  uint64
-}
 
 // Builder is a UKI file builder.
 type Builder struct {
@@ -53,6 +36,9 @@ type Builder struct {
 	Cmdline string
 	// Os-release file
 	OsRelease string
+	// Phases to measure for
+	Phases []types.PhaseInfo
+
 	// SecureBoot certificate and signer.
 	SecureBootSigner pesign.CertificateSigner
 	// SecureBoot key
@@ -61,7 +47,7 @@ type Builder struct {
 	SBCert string
 
 	// PCR signer.
-	PCRSigner measure.RSAKey
+	PCRSigner types.RSAKey
 	// Path to the PCR signing key
 	PCRKey string
 
@@ -79,7 +65,7 @@ type Builder struct {
 	LogLevel string
 
 	// fields initialized during build
-	sections        []section
+	sections        []types.UkiSection
 	scratchDir      string
 	peSigner        *pesign.Signer
 	unsignedUKIPath string
@@ -110,9 +96,7 @@ func (builder *Builder) Build() error {
 	}
 
 	if builder.PCRSigner == nil {
-		if builder.PCRKey == "" {
-			return errors.New("no PCR signer or PCRKey available")
-		} else {
+		if builder.PCRKey != "" {
 			signer, err := pesign.NewPCRSigner(builder.PCRKey)
 			if err != nil {
 				return err
@@ -121,15 +105,19 @@ func (builder *Builder) Build() error {
 		}
 	}
 
-	if builder.SecureBootSigner == nil {
-		if builder.SBCert == "" || builder.SBKey == "" {
-			return errors.New("no Secureboot signer or combination of SB key+cert to sign")
-		} else {
-			sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
-			if err != nil {
-				return err
+	// Try to generate a signer base on our given args
+	// If we have a	either a signer or key/cert
+	// Try to use first the signer as we can use a custom signed passed in the struct
+	// otherwise create a new default signer with the key and cert
+	if builder.sbSignEnabled() {
+		if builder.SecureBootSigner == nil {
+			if builder.SBCert != "" && builder.SBKey != "" {
+				sbSigner, err := pesign.NewSecureBootSigner(builder.SBCert, builder.SBKey)
+				if err != nil {
+					return err
+				}
+				builder.SecureBootSigner = sbSigner
 			}
-			builder.SecureBootSigner = sbSigner
 		}
 	}
 
@@ -144,7 +132,8 @@ func (builder *Builder) Build() error {
 		}
 	}()
 
-	if builder.SdBootPath != "" {
+	// Sign sd-boot if given and signing is enabled
+	if builder.SdBootPath != "" && builder.sbSignEnabled() {
 		slog.Info("Signing systemd-boot", "path", builder.SdBootPath)
 
 		builder.peSigner, err = pesign.NewSigner(builder.SecureBootSigner)
@@ -192,12 +181,38 @@ func (builder *Builder) Build() error {
 	}
 
 	builder.Logger.Info("Assembled UKI")
-	builder.Logger.Info("Signing UKI")
 
-	// sign the UKI file
-	err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
-	if err == nil {
-		builder.Logger.Info("Signed UKI")
+	// sign the UKI file if signing is enabled
+	if builder.sbSignEnabled() {
+		builder.Logger.Info("Signing UKI")
+		err = builder.peSigner.Sign(builder.unsignedUKIPath, builder.OutUKIPath, builder.Logger)
+		if err == nil {
+			builder.Logger.Info(fmt.Sprintf("Signed UKI at %s", builder.OutUKIPath))
+		}
+	} else {
+		// Move it to final place as we will remove the scratch dir
+		fileRead, err := os.ReadFile(builder.unsignedUKIPath)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1), fileRead, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		builder.Logger.Info(fmt.Sprintf("Unsigned UKI at %s", strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1)))
 	}
+
 	return err
+}
+
+// sbSignEnabled let us know if we have to sign the sd-boot and uki final file
+// Checks if we have a signer or a key/cert pair to sign
+func (builder *Builder) sbSignEnabled() bool {
+	return builder.SecureBootSigner != nil || (builder.SBKey != "" && builder.SBCert != "")
+}
+
+// pcrSignEnabled let us know if we have to sign the measurements
+// Checks if we have a pcr signer or a pcrkey
+func (builder *Builder) pcrSignEnabled() bool {
+	return builder.PCRSigner != nil || builder.PCRKey != ""
 }

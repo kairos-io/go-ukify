@@ -19,7 +19,7 @@ type Digest struct {
 	hash []byte
 }
 
-// NewDigest creates a new Digest with the speified hash algorithm.
+// NewDigest creates a new Digest with the specified hash algorithm.
 func NewDigest(alg crypto.Hash) *Digest {
 	return &Digest{
 		alg:  alg,

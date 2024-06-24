@@ -1,6 +1,11 @@
 package types
 
 import (
+	"crypto"
+	"crypto/rsa"
+	"strings"
+
+	"github.com/google/go-tpm/tpm2"
 	"github.com/kairos-io/go-ukify/pkg/constants"
 )
 
@@ -24,10 +29,37 @@ type BankData struct {
 	Sig string `json:"sig"`
 }
 
+type Algorithm struct {
+	Alg            tpm2.TPMAlgID
+	BankDataSetter *[]BankData
+}
+
+func GetTPMALGorithm() (*PCRData, []Algorithm) {
+	data := &PCRData{}
+	algs := []Algorithm{
+		{
+			Alg:            tpm2.TPMAlgSHA1,
+			BankDataSetter: &data.SHA1,
+		},
+		{
+			Alg:            tpm2.TPMAlgSHA256,
+			BankDataSetter: &data.SHA256,
+		},
+		{
+			Alg:            tpm2.TPMAlgSHA384,
+			BankDataSetter: &data.SHA384,
+		},
+		{
+			Alg:            tpm2.TPMAlgSHA512,
+			BankDataSetter: &data.SHA512,
+		},
+	}
+	return data, algs
+}
+
 // PhaseInfo describes which phase extensions are signed/measured.
 type PhaseInfo struct {
-	Phase              constants.Phase
-	CalculateSignature bool
+	Phase constants.Phase
 }
 
 // OrderedPhases returns the phases that are measured, in order.
@@ -40,25 +72,50 @@ type PhaseInfo struct {
 // I.E. You want to load something and then extend so its measured up to that point, then the values below do
 // not work for you
 // OrderedPhases returns the phases that are measured.
-// TODO: Allow overriding?
 func OrderedPhases() []PhaseInfo {
 	// DO NOT REARRANGE
 	return []PhaseInfo{
 		{
-			Phase:              constants.EnterInitrd,
-			CalculateSignature: true,
+			Phase: constants.EnterInitrd,
 		},
 		{
-			Phase:              constants.LeaveInitrd,
-			CalculateSignature: true,
+			Phase: constants.LeaveInitrd,
 		},
 		{
-			Phase:              constants.SysInit,
-			CalculateSignature: true,
+			Phase: constants.SysInit,
 		},
 		{
-			Phase:              constants.Ready,
-			CalculateSignature: true,
+			Phase: constants.Ready,
 		},
 	}
+}
+
+// PhasesToString returns a nice string for all the phases with semicolons between them
+func PhasesToString(s []PhaseInfo) string {
+	var data []string
+	for _, a := range s {
+		data = append(data, string(a.Phase))
+	}
+	return strings.Join(data, ":")
+}
+
+// UkiSection is a UKI file section.
+type UkiSection struct {
+	// Section name.
+	Name constants.Section
+	// Path to the contents of the section.
+	Path string
+	// Should the section be measured to the TPM?
+	Measure bool
+	// Should the section be appended, or is it already in the PE file.
+	Append bool
+	// Size & VMA of the section.
+	Size uint64
+	VMA  uint64
+}
+
+// RSAKey is the input for the CalculateBankData function.
+type RSAKey interface {
+	crypto.Signer
+	PublicRSAKey() *rsa.PublicKey
 }

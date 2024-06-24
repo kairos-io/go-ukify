@@ -9,10 +9,10 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"github.com/kairos-io/go-ukify/internal/common"
+	"github.com/kairos-io/go-ukify/pkg/types"
+	"github.com/kairos-io/go-ukify/pkg/utils"
 	"os"
 	"path/filepath"
-
-	"github.com/siderolabs/gen/xslices"
 
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/measure"
@@ -37,7 +37,7 @@ func (builder *Builder) generateOSRel() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.OSRel,
 			Path:    path,
 			Measure: true,
@@ -57,7 +57,7 @@ func (builder *Builder) generateCmdline() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.CMDLine,
 			Path:    path,
 			Measure: true,
@@ -71,7 +71,7 @@ func (builder *Builder) generateCmdline() error {
 func (builder *Builder) generateInitrd() error {
 	builder.Logger.Debug("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Initrd,
 			Path:    builder.InitrdPath,
 			Measure: true,
@@ -99,7 +99,7 @@ func (builder *Builder) generateSplash() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Splash,
 			Path:    path,
 			Measure: true,
@@ -133,7 +133,7 @@ func (builder *Builder) generateUname() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Uname,
 			Path:    path,
 			Measure: true,
@@ -163,7 +163,7 @@ func (builder *Builder) generateSBAT() error {
 	// This is because we build with the systemd-stub as base, and that already has a .sbat section!
 	// So int he final PE file we will get the .sbat section in there, so we need to measure.
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.SBAT,
 			Path:    path,
 			Measure: true,
@@ -174,6 +174,9 @@ func (builder *Builder) generateSBAT() error {
 }
 
 func (builder *Builder) generatePCRPublicKey() error {
+	if !builder.pcrSignEnabled() {
+		return nil
+	}
 	builder.Logger.Debug("Getting Public PCR key")
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(builder.PCRSigner.PublicRSAKey())
 	if err != nil {
@@ -192,7 +195,7 @@ func (builder *Builder) generatePCRPublicKey() error {
 	}
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.PCRPKey,
 			Path:    path,
 			Append:  true,
@@ -208,7 +211,7 @@ func (builder *Builder) generateKernel() error {
 	builder.Logger.Debug("Getting kernel")
 
 	builder.sections = append(builder.sections,
-		section{
+		types.UkiSection{
 			Name:    constants.Linux,
 			Path:    builder.KernelPath,
 			Append:  true,
@@ -220,45 +223,43 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
-	builder.Logger.Info("Generating PCR measurements and signed policy")
+	builder.Logger.Info("Generating PCR measurements")
 	builder.Logger.Debug("Using PCR slot", "number", constants.UKIPCR)
-	sectionsData := xslices.ToMap(
-		xslices.Filter(builder.sections,
-			func(s section) bool {
-				return s.Measure
-			},
-		),
-		func(s section) (constants.Section, string) {
-			return s.Name, s.Path
-		})
+	sectionsData := utils.SectionsData(builder.sections)
 
-	pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.PCRSigner, constants.UKIPCR, builder.Logger)
-	if err != nil {
-		return err
+	// If we have the signer sign the measurements and attach them to the uki file
+	if builder.pcrSignEnabled() {
+		builder.Logger.Info("Generating signed policy")
+		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.Phases, builder.PCRSigner, constants.UKIPCR, builder.Logger)
+		if err != nil {
+			return err
+		}
+		pcrSignatureData, err := json.Marshal(pcrData)
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(builder.scratchDir, "pcrpsig")
+
+		if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
+			return err
+		}
+
+		builder.sections = append(builder.sections,
+			types.UkiSection{
+				Name:   constants.PCRSig,
+				Path:   path,
+				Append: true,
+			},
+		)
+	} else {
+		// Otherwise just measure and print the measurements
+		measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR, builder.Logger)
 	}
 
 	if builder.LogLevel == "debug" {
-		measure.PrintSystemdMeasurements("enter-initrd:leave-initrd:sysinit:ready", sectionsData, builder.PCRKey)
+		measure.PrintSystemdMeasurements(types.PhasesToString(builder.Phases), sectionsData, builder.PCRKey)
 	}
-
-	pcrSignatureData, err := json.Marshal(pcrData)
-	if err != nil {
-		return err
-	}
-
-	path := filepath.Join(builder.scratchDir, "pcrpsig")
-
-	if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
-		return err
-	}
-
-	builder.sections = append(builder.sections,
-		section{
-			Name:   constants.PCRSig,
-			Path:   path,
-			Append: true,
-		},
-	)
 
 	return nil
 }
