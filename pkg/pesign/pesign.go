@@ -159,11 +159,17 @@ func NewPCRSigner(keyPath string) (*PCRSigner, error) {
 		return nil, errors.New("failed to decode private key")
 	}
 
-	rsaKey, err := x509.ParsePKCS8PrivateKey(rsaPrivateKeyBlock.Bytes)
+	var rsaKey *rsa.PrivateKey
+	rsaKey, err = x509.ParsePKCS1PrivateKey(rsaPrivateKeyBlock.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private RSA key: %v", err)
+		// Try to see if its in a different format maybe?
+		key, err := x509.ParsePKCS8PrivateKey(rsaPrivateKeyBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private RSA key: %v", err)
+		}
+		rsaKey = key.(*rsa.PrivateKey)
 	}
 
-	rsaKeyParsed := rsaKey.(*rsa.PrivateKey)
-	return &PCRSigner{rsaKeyParsed}, nil
+	//rsaKeyParsed := rsaKey.(*rsa.PrivateKey)
+	return &PCRSigner{rsaKey}, nil
 }
