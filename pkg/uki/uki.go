@@ -76,6 +76,12 @@ type Builder struct {
 func (builder *Builder) Build() error {
 	var err error
 
+	// Check if we got any phases
+	if len(builder.Phases) == 0 {
+		// use default phases
+		builder.Phases = types.OrderedPhases()
+	}
+
 	if builder.PCRSigner == nil {
 		if builder.PCRKey != "" {
 			signer, err := pesign.NewPCRSigner(builder.PCRKey)
@@ -125,6 +131,7 @@ func (builder *Builder) Build() error {
 		if err = builder.SecureBootSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
+
 		slog.Info("Signed systemd-boot", "path", builder.OutSdBootPath)
 	} else {
 		slog.Info("Not signing systemd-boot")

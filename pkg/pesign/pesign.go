@@ -16,8 +16,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/foxboron/go-uefi/authenticode"
 	"github.com/kairos-io/go-ukify/pkg/types"
-	"github.com/kairos-io/go-ukify/pkg/utils"
 )
 
 // Signer sigs PE (portable executable) files.
@@ -40,19 +40,82 @@ func NewSigner(provider CertificateSigner) (*Signer, error) {
 
 // Sign signs the input file and writes the output to the output file.
 func (s *Signer) Sign(input, output string) error {
+	if _, err := os.Stat(input); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("%s does not exist", input)
+	}
 	slog.Debug("Signing file", "input", input, "output", output)
-	unsigned, err := os.ReadFile(input)
+
+	si, err := os.Stat(input)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to open %s", input))
+		return fmt.Errorf("failed getting input file info: %w", err)
+	}
+
+	ok, err := s.VerifyFile(input)
+	if ok {
+		slog.Warn("File is already signed with the cert, copying it into output file")
+		// already signed with the cert
+		// just copy it to the output place
+		f, err := os.ReadFile(input)
+		if err != nil {
+			return fmt.Errorf("failed reading input file: %w", err)
+		}
+		if err = os.WriteFile(output, f, si.Mode()); err != nil {
+			return fmt.Errorf("failed writing output file: %w", err)
+		}
+		return nil
+	}
+
+	peFile, err := os.Open(input)
+	if err != nil {
 		return err
 	}
-	signed, err := utils.SignEFIExecutable(s.provider.Signer(), s.provider.Certificate(), unsigned)
+	defer peFile.Close()
+
+	peBinary, err := authenticode.Parse(peFile)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to open %s", input))
 		return err
 	}
 
-	return os.WriteFile(output, signed, 0o777)
+	_, err = peBinary.Sign(s.provider.Signer(), s.provider.Certificate())
+	if err != nil {
+		return err
+	}
+
+	if err = os.WriteFile(output, peBinary.Bytes(), si.Mode()); err != nil {
+		return err
+	}
+
+	// Now verify the output just in case
+	ok, err = s.VerifyFile(output)
+	if !ok || err != nil {
+		return fmt.Errorf("failed verifying output file: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Signer) VerifyFile(file string) (bool, error) {
+	peFile, err := os.Open(file)
+	if err != nil {
+		return false, err
+	}
+	defer peFile.Close()
+
+	peBinary, err := authenticode.Parse(peFile)
+	if err != nil {
+		return false, err
+	}
+
+	sigs, err := peBinary.Signatures()
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", file, err)
+	}
+
+	if len(sigs) == 0 {
+		return false, nil
+	}
+
+	return peBinary.Verify(s.provider.Certificate())
 }
 
 // Verify interface.

@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
-	"log/slog"
-
+	"errors"
 	"github.com/foxboron/go-uefi/authenticode"
-	"github.com/foxboron/go-uefi/pkcs7"
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
+	"log/slog"
 )
 
 // SectionsData transforms a []types.UkiSection into a map[constants.Section]string
@@ -38,16 +37,16 @@ func SignEFIExecutable(key crypto.Signer, cert *x509.Certificate, file []byte) (
 		return nil, err
 	}
 
-	sig, err := pkcs7.SignPKCS7(key, cert, authenticode.OIDSpcIndirectDataContent, pecoffBinary.Bytes())
+	signedFile, err := pecoffBinary.Sign(key, cert)
 	if err != nil {
-		slog.Debug("failed to sign EFI binary", "error", err)
 		return nil, err
 	}
 
-	err = pecoffBinary.AppendSignature(sig)
-	if err != nil {
-		slog.Debug("failed to append EFI binary signature", "error", err)
-		return nil, err
+	// Verify it
+	verify, err := pecoffBinary.Verify(cert)
+	if !verify {
+		return nil, errors.New("failed to verify")
 	}
-	return pecoffBinary.Bytes(), nil
+
+	return signedFile, nil
 }
