@@ -6,6 +6,7 @@ import (
 	"github.com/kairos-io/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log/slog"
 	"strings"
 )
 
@@ -24,6 +25,10 @@ var createUkify = &cobra.Command{
 			for _, phase := range strings.Split(phases, ":") {
 				parsedPhases = append(parsedPhases, types.PhaseInfo{Phase: constants.Phase(phase)})
 			}
+		}
+
+		if viper.GetBool("debug") {
+			slog.SetLogLoggerLevel(slog.LevelDebug)
 		}
 
 		builder := &uki.Builder{
@@ -65,6 +70,7 @@ func init() {
 	createUkify.Flags().StringP("output-sdboot", "", "sdboot.signed.efi", "sdboot output.")
 	createUkify.Flags().StringP("output-uki", "", "uki.signed.efi", "uki artifact output.")
 	createUkify.Flags().StringP("phases", "", "enter-initrd:leave-initrd:sysinit:ready", "phases to measure for, separated by : and in order of measurement")
+	createUkify.Flags().Bool("debug", false, "Enable debug output")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
 	_ = createUkify.MarkFlagRequired("initrd")
