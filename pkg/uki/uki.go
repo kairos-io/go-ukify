@@ -125,6 +125,7 @@ func (builder *Builder) Build() error {
 		if err = builder.SecureBootSigner.Sign(builder.SdBootPath, builder.OutSdBootPath); err != nil {
 			return fmt.Errorf("error signing sd-boot: %w", err)
 		}
+
 		slog.Info("Signed systemd-boot", "path", builder.OutSdBootPath)
 	} else {
 		slog.Info("Not signing systemd-boot")
