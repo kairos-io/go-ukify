@@ -3,7 +3,7 @@ module github.com/kairos-io/go-ukify
 go 1.22.1
 
 require (
-	github.com/foxboron/go-uefi v0.0.0-20240722190620-5d4f760099bd
+	github.com/foxboron/go-uefi v0.0.0-20240805124652-e2076f0e58ca
 	github.com/google/go-tpm v0.9.1
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
