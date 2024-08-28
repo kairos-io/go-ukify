@@ -5,7 +5,7 @@ go 1.22.1
 require (
 	github.com/foxboron/go-uefi v0.0.0-20240722190620-5d4f760099bd
 	github.com/google/go-tpm v0.9.1
-	github.com/onsi/ginkgo/v2 v2.20.1
+	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
