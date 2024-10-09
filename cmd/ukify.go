@@ -44,6 +44,7 @@ var createUkify = &cobra.Command{
 			PCRKey:        viper.GetString("pcr-key"),
 			SBKey:         viper.GetString("sb-key"),
 			SBCert:        viper.GetString("sb-cert"),
+			Splash:        viper.GetString("splash"),
 			Phases:        parsedPhases,
 		}
 
@@ -70,6 +71,7 @@ func init() {
 	createUkify.Flags().StringP("output-sdboot", "", "sdboot.signed.efi", "sdboot output.")
 	createUkify.Flags().StringP("output-uki", "", "uki.signed.efi", "uki artifact output.")
 	createUkify.Flags().StringP("phases", "", "enter-initrd:leave-initrd:sysinit:ready", "phases to measure for, separated by : and in order of measurement")
+	createUkify.Flags().StringP("splash", "", "", "Path to the custom logo splash BMP file.")
 	createUkify.Flags().Bool("debug", false, "Enable debug output")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
