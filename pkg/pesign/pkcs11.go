@@ -2,6 +2,7 @@ package pesign
 
 import (
 	"crypto"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/ThalesGroup/crypto11"
@@ -23,14 +24,11 @@ import (
 // TODO: We could also support passing the PIN via an environment variable for security, or dropping and asking for the PIN
 // TODO: We should check which parameters are required and optional and so on, but looking and the config seems like we are covered
 func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
-	slog.Debug("PKCS#11 URI input", "uri", pkcs11uri)
 	uri, err := url.Parse(pkcs11uri)
 	if err != nil {
 		slog.Error("Failed to parse PKCS#11 URI", "error", err)
 		return nil, err
 	}
-
-	slog.Debug("Parsed URI", "scheme", uri.Scheme, "opaque", uri.Opaque, "rawquery", uri.RawQuery)
 
 	// Parse parameters from the opaque part (not query params)
 	params := make(map[string]string)
@@ -43,15 +41,14 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 			params[kv[0]] = kv[1]
 		}
 	}
-	slog.Debug("Parsed params from opaque", "params", params)
 
 	modulePath := params["module-path"]
 	pin := params["pin-value"]
 
-	slog.Debug("Extracted module-path and pin-value", "module-path", modulePath, "pin-value", "***")
+	slog.Debug("Extracted module-path and pin-value", "module-path", modulePath)
 
 	if modulePath == "" || pin == "" {
-		slog.Error("module-path and pin-value required in PKCS#11 URI", "module-path", modulePath, "pin-value", pin)
+		slog.Error("module-path and pin-value required in PKCS#11 URI", "module-path", modulePath)
 		return nil, errors.New("module-path and pin-value required in PKCS#11 URI")
 	}
 
@@ -91,13 +88,6 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 		if len(id)%2 == 0 {
 			decoded, err := hex.DecodeString(id)
 			if err == nil {
-				idBytes = decoded
-				slog.Debug("Decoded id as hex", "id", id, "idBytes", idBytes)
-			} else {
-				idBytes = []byte(id)
-				slog.Debug("Failed to decode id as hex, using as ASCII bytes", "id", id, "idBytes", idBytes)
-			}
-			if hexOk {
 				idBytes = decoded
 				slog.Debug("Decoded id as hex", "id", id, "idBytes", idBytes)
 			} else {
