@@ -8,12 +8,14 @@ import (
 	"debug/pe"
 	"errors"
 	"github.com/kairos-io/go-ukify/pkg/constants"
+	"log/slog"
 )
 
 // GetSBAT returns the SBAT section from the PE file.
 func GetSBAT(path string) ([]byte, error) {
 	pefile, err := pe.Open(path)
 	if err != nil {
+		slog.Info("ERROROROROROR")
 		return nil, err
 	}
 
