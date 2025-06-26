@@ -80,7 +80,7 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 
 	ctx, err := crypto11.Configure(conf)
 	if err != nil {
-		slog.Error("crypto11.Configure failed", "error", err, "errorDetails", fmt.Sprintf("%+v", err), "conf.Path", conf.Path, "conf.Pin", conf.Pin, "conf.TokenLabel", conf.TokenLabel, "conf.SlotNumber", conf.SlotNumber)
+		slog.Error("crypto11.Configure failed", "error", err, "errorDetails", fmt.Sprintf("%+v", err), "conf.Path", conf.Path, "conf.Pin", "***", "conf.TokenLabel", conf.TokenLabel, "conf.SlotNumber", conf.SlotNumber)
 		return nil, err
 	}
 
