@@ -89,16 +89,13 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 	if id, ok := params["id"]; ok {
 		// Try to decode as hex if it looks like hex
 		if len(id)%2 == 0 {
-			decoded := make([]byte, len(id)/2)
-			hexOk := true
-			for i := 0; i < len(id); i += 2 {
-				var b byte
-				_, err := fmt.Sscanf(id[i:i+2], "%02x", &b)
-				if err != nil {
-					hexOk = false
-					break
-				}
-				decoded[i/2] = b
+			decoded, err := hex.DecodeString(id)
+			if err == nil {
+				idBytes = decoded
+				slog.Debug("Decoded id as hex", "id", id, "idBytes", idBytes)
+			} else {
+				idBytes = []byte(id)
+				slog.Debug("Failed to decode id as hex, using as ASCII bytes", "id", id, "idBytes", idBytes)
 			}
 			if hexOk {
 				idBytes = decoded
