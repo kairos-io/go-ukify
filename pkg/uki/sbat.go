@@ -15,7 +15,7 @@ import (
 func GetSBAT(path string) ([]byte, error) {
 	pefile, err := pe.Open(path)
 	if err != nil {
-		slog.Info("ERROROROROROR")
+		slog.Error("failed to open PE file", "path", path, "error", err)
 		return nil, err
 	}
 

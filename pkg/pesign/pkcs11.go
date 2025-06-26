@@ -48,7 +48,7 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 	modulePath := params["module-path"]
 	pin := params["pin-value"]
 
-	slog.Debug("Extracted module-path and pin-value", "module-path", modulePath, "pin-value", pin)
+	slog.Debug("Extracted module-path and pin-value", "module-path", modulePath, "pin-value", "***")
 
 	if modulePath == "" || pin == "" {
 		slog.Error("module-path and pin-value required in PKCS#11 URI", "module-path", modulePath, "pin-value", pin)
@@ -112,8 +112,8 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 		}
 	}
 	if len(idBytes) > 0 {
-		slog.Debug("Tried FindKeyPair by id", "idBytes", idBytes, "err", err)
 		key, err = ctx.FindKeyPair(idBytes, nil)
+		slog.Debug("Tried FindKeyPair by id", "idBytes", idBytes, "err", err)
 		if err != nil {
 			return nil, err
 		}
@@ -122,8 +122,8 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 		}
 	}
 	if label, ok := params["object"]; ok {
-		slog.Debug("Tried FindKeyPair by label", "label", label, "err", err)
 		key, err = ctx.FindKeyPair(nil, []byte(label))
+		slog.Debug("Tried FindKeyPair by label", "label", label, "err", err)
 		if err != nil {
 			return nil, err
 		}
