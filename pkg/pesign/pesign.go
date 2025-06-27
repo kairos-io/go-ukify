@@ -15,6 +15,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/foxboron/go-uefi/authenticode"
 	"github.com/kairos-io/go-ukify/pkg/types"
@@ -133,29 +134,12 @@ func (s *SecureBootSigner) Certificate() *x509.Certificate {
 
 // SecureBootSigner implements pesign.CertificateSigner interface.
 type SecureBootSigner struct {
-	key  *rsa.PrivateKey
+	key  crypto.Signer
 	cert *x509.Certificate
 }
 
 func NewSecureBootSigner(certPath, keyPath string) (*SecureBootSigner, error) {
-	keyData, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// convert private key to rsa.PrivateKey
-	rsaPrivateKeyBlock, _ := pem.Decode(keyData)
-	if rsaPrivateKeyBlock == nil {
-		return nil, errors.New("failed to decode private key")
-	}
-
-	rsaKey, err := x509.ParsePKCS8PrivateKey(rsaPrivateKeyBlock.Bytes)
-	rsaKeyParsed := rsaKey.(*rsa.PrivateKey)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private RSA key: %w", err)
-	}
-
+	// Certificate loading (unchanged)
 	certData, err := os.ReadFile(certPath)
 	if err != nil {
 		return nil, err
@@ -169,6 +153,36 @@ func NewSecureBootSigner(certPath, keyPath string) (*SecureBootSigner, error) {
 	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// PKCS#11 URI detection
+	if strings.HasPrefix(keyPath, "pkcs11:") {
+		priv, err := loadPKCS11Signer(keyPath)
+		if err != nil {
+			return nil, err
+		}
+		return &SecureBootSigner{cert: cert, key: priv}, nil
+	}
+
+	// File-based key handling (unchanged)
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	keyBlock, _ := pem.Decode(keyData)
+	if keyBlock == nil {
+		return nil, errors.New("failed to decode private key")
+	}
+
+	rsaKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private RSA key: %w", err)
+	}
+
+	rsaKeyParsed, ok := rsaKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("private key is not an RSA key")
 	}
 
 	return &SecureBootSigner{

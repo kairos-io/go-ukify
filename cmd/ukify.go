@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log/slog"
+	"os"
 	"strings"
 )
 
@@ -15,6 +16,11 @@ var createUkify = &cobra.Command{
 	Short: "Create a uki file",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var parsedPhases []types.PhaseInfo
+
+		if viper.GetBool("debug") {
+			h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+			slog.SetDefault(slog.New(h))
+		}
 
 		phases := viper.GetString("phases")
 		// Default to know systemd phases
@@ -25,10 +31,6 @@ var createUkify = &cobra.Command{
 			for _, phase := range strings.Split(phases, ":") {
 				parsedPhases = append(parsedPhases, types.PhaseInfo{Phase: constants.Phase(phase)})
 			}
-		}
-
-		if viper.GetBool("debug") {
-			slog.SetLogLoggerLevel(slog.LevelDebug)
 		}
 
 		builder := &uki.Builder{
