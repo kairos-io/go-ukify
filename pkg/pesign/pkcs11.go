@@ -68,9 +68,10 @@ func loadPKCS11Signer(pkcs11uri string) (crypto.Signer, error) {
 		conf.SlotNumber = &slotID
 	}
 
-	// Check if the module file exists and log its permissions
+	// Check if the module file exists and return an error if not found
 	if stat, statErr := os.Stat(modulePath); statErr != nil {
 		slog.Error("PKCS#11 module file not found", "path", modulePath, "statErr", statErr)
+		return nil, fmt.Errorf("PKCS#11 module file not found at path '%s': %w", modulePath, statErr)
 	} else {
 		slog.Debug("PKCS#11 module file found", "path", modulePath, "mode", stat.Mode(), "size", stat.Size())
 	}
