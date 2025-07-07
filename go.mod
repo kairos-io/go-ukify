@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	github.com/ThalesGroup/crypto11 v1.4.1
-	github.com/foxboron/go-uefi v0.0.0-20241017190036-fab4fdf2f2f3
+	github.com/foxboron/go-uefi v0.0.0-20250625111927-a3183a1bfc84
 	github.com/google/go-tpm v0.9.5
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
