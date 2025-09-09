@@ -8,12 +8,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"github.com/kairos-io/go-ukify/internal/common"
-	"github.com/kairos-io/go-ukify/pkg/types"
-	"github.com/kairos-io/go-ukify/pkg/utils"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/kairos-io/go-ukify/internal/common"
+	"github.com/kairos-io/go-ukify/pkg/types"
+	"github.com/kairos-io/go-ukify/pkg/utils"
 
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/measure"
@@ -65,7 +67,47 @@ func (builder *Builder) generateCmdline() error {
 			Append:  true,
 		},
 	)
+	builder.profileCmdlinePaths = append(builder.profileCmdlinePaths, path)
 
+	return nil
+}
+
+// generateExtraProfiles creates repeated .profile  .cmdline pairs for each ExtraCmdlines entry.
+func (builder *Builder) generateExtraProfiles() error {
+	for idx, line := range builder.ExtraCmdlines {
+		// 1) .profile metadata (simple; sufficient for selection and grouping)
+		profilePath := filepath.Join(builder.scratchDir, fmt.Sprintf("profile-%d", idx+1))
+		// Minimal key=value body; ID/TITLE help bootctl present them nicely.
+		profileBody := []byte(fmt.Sprintf("ID=extra-%d\nTITLE=extra-%d\n", idx+1, idx+1))
+		if err := os.WriteFile(profilePath, profileBody, 0o600); err != nil {
+			return err
+		}
+		builder.sections = append(builder.sections,
+			types.UkiSection{
+				Name:   constants.Profile,
+				Path:   profilePath,
+				Append: true,
+				// .profile is not measured in PCR 11, so Measure=false
+			},
+		)
+
+		// 2) the profile's .cmdline
+		cmdPath := filepath.Join(builder.scratchDir, fmt.Sprintf("cmdline-extra-%d", idx+1))
+		if err := os.WriteFile(cmdPath, []byte(line), 0o600); err != nil {
+			return err
+		}
+		builder.sections = append(builder.sections,
+			types.UkiSection{
+				Name:    constants.CMDLine,
+				Path:    cmdPath,
+				Measure: true,
+				Append:  true,
+			},
+		)
+
+		// Remember for per-profile PCR signatures
+		builder.profileCmdlinePaths = append(builder.profileCmdlinePaths, cmdPath)
+	}
 	return nil
 }
 
@@ -230,32 +272,54 @@ func (builder *Builder) generatePCRSig() error {
 
 	// If we have the signer sign the measurements and attach them to the uki file
 	if builder.pcrSignEnabled() {
-		slog.Info("Generating signed policy")
-		pcrData, err := measure.GenerateSignedPCR(sectionsData, builder.Phases, builder.PCRSigner, constants.UKIPCR)
-		if err != nil {
-			return err
+		slog.Info("Generating signed policy per profile")
+		// ensure we have at least the base cmdline recorded
+		if len(builder.profileCmdlinePaths) == 0 {
+			slog.Debug("profileCmdlinePaths empty; falling back to current sectionsData .cmdline")
+			builder.profileCmdlinePaths = append(builder.profileCmdlinePaths, sectionsData[constants.CMDLine])
 		}
-		pcrSignatureData, err := json.Marshal(pcrData)
-		if err != nil {
-			return err
+		for i, cmd := range builder.profileCmdlinePaths {
+			// clone & override the cmdline for this profile
+			override := map[constants.Section]string{}
+			for k, v := range sectionsData {
+				override[k] = v
+			}
+			override[constants.CMDLine] = cmd
+
+			pcrData, err := measure.GenerateSignedPCR(override, builder.Phases, builder.PCRSigner, constants.UKIPCR)
+			if err != nil {
+				return err
+			}
+			pcrSignatureData, err := json.Marshal(pcrData)
+			if err != nil {
+				return err
+			}
+			path := filepath.Join(builder.scratchDir, fmt.Sprintf("pcrpsig-%d", i))
+			if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
+				return err
+			}
+			builder.sections = append(builder.sections,
+				types.UkiSection{
+					Name:   constants.PCRSig,
+					Path:   path,
+					Append: true,
+				},
+			)
 		}
-
-		path := filepath.Join(builder.scratchDir, "pcrpsig")
-
-		if err = os.WriteFile(path, pcrSignatureData, 0o600); err != nil {
-			return err
-		}
-
-		builder.sections = append(builder.sections,
-			types.UkiSection{
-				Name:   constants.PCRSig,
-				Path:   path,
-				Append: true,
-			},
-		)
 	} else {
-		// Otherwise just measure and print the measurements
-		measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR)
+		// For visibility, print measurements for the base and extras
+		if len(builder.profileCmdlinePaths) == 0 {
+			measure.GenerateMeasurements(sectionsData, builder.Phases, constants.UKIPCR)
+		} else {
+			for _, cmd := range builder.profileCmdlinePaths {
+				override := map[constants.Section]string{}
+				for k, v := range sectionsData {
+					override[k] = v
+				}
+				override[constants.CMDLine] = cmd
+				measure.GenerateMeasurements(override, builder.Phases, constants.UKIPCR)
+			}
+		}
 	}
 
 	return nil

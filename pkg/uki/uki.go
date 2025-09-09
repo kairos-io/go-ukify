@@ -64,6 +64,9 @@ type Builder struct {
 	sections        []types.UkiSection
 	scratchDir      string
 	unsignedUKIPath string
+
+	ExtraCmdlines       []string
+	profileCmdlinePaths []string
 }
 
 // Build the UKI file.
@@ -143,6 +146,7 @@ func (builder *Builder) Build() error {
 	for _, generateSection := range []func() error{
 		builder.generateOSRel,
 		builder.generateCmdline,
+		builder.generateExtraProfiles, // <— new: only adds sections when ExtraCmdlines is non-empty
 		builder.generateInitrd,
 		builder.generateSplash,
 		builder.generateUname,

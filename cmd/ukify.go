@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"log/slog"
+	"os"
+	"strings"
+
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
 	"github.com/kairos-io/go-ukify/pkg/uki"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"log/slog"
-	"os"
-	"strings"
 )
 
 var createUkify = &cobra.Command{
@@ -48,6 +49,7 @@ var createUkify = &cobra.Command{
 			SBCert:        viper.GetString("sb-cert"),
 			Splash:        viper.GetString("splash"),
 			Phases:        parsedPhases,
+			ExtraCmdlines: viper.GetStringSlice("extra-cmdline"),
 		}
 
 		if viper.GetString("os-release") != "" {
@@ -75,6 +77,7 @@ func init() {
 	createUkify.Flags().StringP("phases", "", "enter-initrd:leave-initrd:sysinit:ready", "phases to measure for, separated by : and in order of measurement")
 	createUkify.Flags().String("splash", "", "Path to the custom logo splash BMP file.")
 	createUkify.Flags().Bool("debug", false, "Enable debug output")
+	createUkify.Flags().StringSlice("extra-cmdline", []string{}, "Additional profile cmdlines (repeatable)")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
 	_ = createUkify.MarkFlagRequired("initrd")
