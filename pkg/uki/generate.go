@@ -72,45 +72,6 @@ func (builder *Builder) generateCmdline() error {
 	return nil
 }
 
-// generateExtraProfiles creates repeated .profile  .cmdline pairs for each ExtraCmdlines entry.
-func (builder *Builder) generateExtraProfiles() error {
-	for idx, line := range builder.ExtraCmdlines {
-		// 1) .profile metadata (simple; sufficient for selection and grouping)
-		profilePath := filepath.Join(builder.scratchDir, fmt.Sprintf("profile-%d", idx+1))
-		// Minimal key=value body; ID/TITLE help bootctl present them nicely.
-		profileBody := []byte(fmt.Sprintf("ID=extra-%d\nTITLE=extra-%d\n", idx+1, idx+1))
-		if err := os.WriteFile(profilePath, profileBody, 0o600); err != nil {
-			return err
-		}
-		builder.sections = append(builder.sections,
-			types.UkiSection{
-				Name:   constants.Profile,
-				Path:   profilePath,
-				Append: true,
-				// .profile is not measured in PCR 11, so Measure=false
-			},
-		)
-
-		// 2) the profile's .cmdline
-		cmdPath := filepath.Join(builder.scratchDir, fmt.Sprintf("cmdline-extra-%d", idx+1))
-		if err := os.WriteFile(cmdPath, []byte(line), 0o600); err != nil {
-			return err
-		}
-		builder.sections = append(builder.sections,
-			types.UkiSection{
-				Name:    constants.CMDLine,
-				Path:    cmdPath,
-				Measure: true,
-				Append:  true,
-			},
-		)
-
-		// Remember for per-profile PCR signatures
-		builder.profileCmdlinePaths = append(builder.profileCmdlinePaths, cmdPath)
-	}
-	return nil
-}
-
 func (builder *Builder) generateInitrd() error {
 	slog.Debug("Using initrd", "path", builder.InitrdPath)
 	builder.sections = append(builder.sections,
@@ -266,6 +227,9 @@ func (builder *Builder) generateKernel() error {
 }
 
 func (builder *Builder) generatePCRSig() error {
+	if len(builder.ExtraCmdlines) > 0 {
+		return nil // handled per-profile above
+	}
 	slog.Info("Generating PCR measurements")
 	slog.Debug("Using PCR slot", "number", constants.UKIPCR)
 	sectionsData := utils.SectionsData(builder.sections)
@@ -322,5 +286,131 @@ func (builder *Builder) generatePCRSig() error {
 		}
 	}
 
+	return nil
+}
+
+// generateBaseProfileAndSig emits a minimal base .profile and a .pcrsig
+// signed over the shared sections + BASE cmdline when extra profiles are used.
+// If there are no ExtraCmdlines, it does nothing (single-profile flow).
+func (builder *Builder) generateBaseProfileAndSig() error {
+	if len(builder.ExtraCmdlines) == 0 {
+		// single-profile: handled later by generatePCRSig()
+		return nil
+	}
+
+	// 1) .profile (base)
+	profPath := filepath.Join(builder.scratchDir, "profile-base")
+	// Minimal body so bootctl shows something nice
+	body := []byte("ID=base\nTITLE=Default profile\n")
+	if err := os.WriteFile(profPath, body, 0o600); err != nil {
+		return err
+	}
+	builder.sections = append(builder.sections, types.UkiSection{
+		Name:   constants.Profile,
+		Path:   profPath,
+		Append: true,
+		// not measured
+	})
+
+	// 2) .pcrsig (base) — sign over current sections with BASE cmdline
+	if !builder.pcrSignEnabled() {
+		// no signing: measurements will be printed later
+		return nil
+	}
+
+	// Build map of measured sections and force base cmdline
+	sectionsData := utils.SectionsData(builder.sections)
+	baseCmd := sectionsData[constants.CMDLine]
+	if len(builder.profileCmdlinePaths) > 0 && builder.profileCmdlinePaths[0] != "" {
+		baseCmd = builder.profileCmdlinePaths[0]
+	}
+	override := map[constants.Section]string{}
+	for k, v := range sectionsData {
+		override[k] = v
+	}
+	override[constants.CMDLine] = baseCmd
+
+	slog.Info("Generating signed PCR policy (base profile)")
+	pcrData, err := measure.GenerateSignedPCR(override, builder.Phases, builder.PCRSigner, constants.UKIPCR)
+	if err != nil {
+		return err
+	}
+	pcrJSON, err := json.Marshal(pcrData)
+	if err != nil {
+		return err
+	}
+	sigPath := filepath.Join(builder.scratchDir, "pcrpsig-base")
+	if err := os.WriteFile(sigPath, pcrJSON, 0o600); err != nil {
+		return err
+	}
+	builder.sections = append(builder.sections, types.UkiSection{
+		Name:   constants.PCRSig,
+		Path:   sigPath,
+		Append: true,
+	})
+	return nil
+}
+
+func (builder *Builder) generateExtraProfiles() error {
+	if len(builder.ExtraCmdlines) == 0 {
+		return nil
+	}
+
+	for i, line := range builder.ExtraCmdlines {
+		// 1) .profile (extra i+1)
+		profPath := filepath.Join(builder.scratchDir, fmt.Sprintf("profile-%d", i+1))
+		// Keep TITLE simple; adjust if you later add a separate --extra-title
+		profBody := []byte(fmt.Sprintf("ID=extra-%d\nTITLE=extra-%d\n", i+1, i+1))
+		if err := os.WriteFile(profPath, profBody, 0o600); err != nil {
+			return err
+		}
+		builder.sections = append(builder.sections, types.UkiSection{
+			Name:   constants.Profile,
+			Path:   profPath,
+			Append: true,
+		})
+
+		// 2) .cmdline for this profile
+		cmdPath := filepath.Join(builder.scratchDir, fmt.Sprintf("cmdline-extra-%d", i+1))
+		if err := os.WriteFile(cmdPath, []byte(line), 0o600); err != nil {
+			return err
+		}
+		builder.sections = append(builder.sections, types.UkiSection{
+			Name:    constants.CMDLine,
+			Path:    cmdPath,
+			Measure: true,
+			Append:  true,
+		})
+		builder.profileCmdlinePaths = append(builder.profileCmdlinePaths, cmdPath)
+
+		// 3) .pcrsig for this profile
+		if builder.pcrSignEnabled() {
+			sectionsData := utils.SectionsData(builder.sections)
+			override := map[constants.Section]string{}
+			for k, v := range sectionsData {
+				override[k] = v
+			}
+			override[constants.CMDLine] = cmdPath
+
+			slog.Info("Generating signed PCR policy", "profile", i+1)
+			pcrData, err := measure.GenerateSignedPCR(override, builder.Phases, builder.PCRSigner, constants.UKIPCR)
+			if err != nil {
+				return err
+			}
+			pcrJSON, err := json.Marshal(pcrData)
+			if err != nil {
+				return err
+			}
+			sigPath := filepath.Join(builder.scratchDir, fmt.Sprintf("pcrpsig-%d", i+1))
+			if err := os.WriteFile(sigPath, pcrJSON, 0o600); err != nil {
+				return err
+			}
+			builder.sections = append(builder.sections, types.UkiSection{
+				Name:   constants.PCRSig,
+				Path:   sigPath,
+				Append: true,
+			})
+		}
+	}
 	return nil
 }

@@ -146,14 +146,15 @@ func (builder *Builder) Build() error {
 	for _, generateSection := range []func() error{
 		builder.generateOSRel,
 		builder.generateCmdline,
-		builder.generateExtraProfiles, // <— new: only adds sections when ExtraCmdlines is non-empty
 		builder.generateInitrd,
 		builder.generateSplash,
 		builder.generateUname,
 		builder.generateSBAT,
 		builder.generatePCRPublicKey,
 		// append kernel last to account for decompression
-		builder.generateKernel,
+		builder.generateKernel,            // shared payload ends here
+		builder.generateBaseProfileAndSig, // emits .profile(base) + .pcrsig(base) if extras exist
+		builder.generateExtraProfiles,     // emits (.profile + .cmdline + .pcrsig) per extra
 		// measure sections last
 		builder.generatePCRSig,
 	} {
