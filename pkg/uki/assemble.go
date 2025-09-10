@@ -82,6 +82,14 @@ func (builder *Builder) assemble() error {
 	// Set the section flag to CODE for .linux not usre if this does anything?
 	args = append(args, "--set-section-flags", ".linux=code,readonly")
 
+	// mark all payload sections as readable (llvm-objcopy default lacks MEM_READ)
+	for _, sec := range []string{
+		".osrel", ".cmdline", ".initrd", ".splash", ".uname",
+		".pcrpkey", ".pcrsig", ".profile",
+	} {
+		args = append(args, "--set-section-flags", fmt.Sprintf("%s=readonly", sec))
+	}
+
 	builder.unsignedUKIPath = filepath.Join(builder.scratchDir, "unsigned.uki")
 
 	args = append(args, builder.SdStubPath, builder.unsignedUKIPath)
