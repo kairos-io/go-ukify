@@ -87,7 +87,7 @@ func (builder *Builder) assemble() error {
 		".osrel", ".cmdline", ".initrd", ".splash", ".uname",
 		".pcrpkey", ".pcrsig", ".profile",
 	} {
-		args = append(args, "--set-section-flags", fmt.Sprintf("%s=readonly", sec))
+		args = append(args, "--set-section-flags", fmt.Sprintf("%s=data,readonly", sec))
 	}
 
 	builder.unsignedUKIPath = filepath.Join(builder.scratchDir, "unsigned.uki")
