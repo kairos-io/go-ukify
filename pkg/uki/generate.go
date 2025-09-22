@@ -301,7 +301,7 @@ func (builder *Builder) generateBaseProfileAndSig() error {
 	// 1) .profile (base)
 	profPath := filepath.Join(builder.scratchDir, "profile-base")
 	// Minimal body so bootctl shows something nice
-	body := []byte("ID=base\nTITLE=Default profile\n")
+	body := []byte(fmt.Sprintf("ID=profile-0\nTITLE=%s\n", builder.Cmdline))
 	if err := os.WriteFile(profPath, body, 0o600); err != nil {
 		return err
 	}
@@ -360,7 +360,7 @@ func (builder *Builder) generateExtraProfiles() error {
 		// 1) .profile (extra i+1)
 		profPath := filepath.Join(builder.scratchDir, fmt.Sprintf("profile-%d", i+1))
 		// Keep TITLE simple; adjust if you later add a separate --extra-title
-		profBody := []byte(fmt.Sprintf("ID=extra-%d\nTITLE=extra-%d\n", i+1, i+1))
+		profBody := []byte(fmt.Sprintf("ID=profile-%d\nTITLE=%s\n", i+1, line))
 		if err := os.WriteFile(profPath, profBody, 0o600); err != nil {
 			return err
 		}
