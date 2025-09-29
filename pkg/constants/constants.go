@@ -42,6 +42,7 @@ PRETTY_NAME="{{ .Name }} ({{ .Version }})"
 	SBAT    Section = ".sbat"
 	PCRSig  Section = ".pcrsig"
 	PCRPKey Section = ".pcrpkey"
+	Profile Section = ".profile"
 )
 
 // OrderedSections returns the sections that are measured into PCR.

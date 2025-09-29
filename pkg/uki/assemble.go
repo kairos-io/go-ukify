@@ -16,6 +16,14 @@ import (
 
 // assemble the UKI file out of sections.
 func (builder *Builder) assemble() error {
+
+	// Prefer llvm-objcopy when we have repeated section names (.profile/.cmdline)
+	useLLVM := len(builder.ExtraCmdlines) > 0
+	objcopy := "objcopy"
+	if useLLVM {
+		objcopy = "llvm-objcopy"
+	}
+
 	peFile, err := pe.Open(builder.SdStubPath)
 	if err != nil {
 		return err
@@ -64,17 +72,27 @@ func (builder *Builder) assemble() error {
 			continue
 		}
 
-		args = append(args, "--add-section", fmt.Sprintf("%s=%s", section.Name, section.Path), "--change-section-vma", fmt.Sprintf("%s=0x%x", section.Name, section.VMA))
+		args = append(args, "--add-section", fmt.Sprintf("%s=%s", section.Name, section.Path))
+		// llvm-objcopy does not support --change-section-vma; skip it and rely on order
+		if !useLLVM {
+			args = append(args, "--change-section-vma", fmt.Sprintf("%s=0x%x", section.Name, section.VMA))
+		}
 	}
 
 	// Set the section flag to CODE for .linux not usre if this does anything?
 	args = append(args, "--set-section-flags", ".linux=code,readonly")
 
+	// mark all payload sections as readable (llvm-objcopy default lacks MEM_READ)
+	for _, sec := range []string{
+		".osrel", ".cmdline", ".initrd", ".splash", ".uname",
+		".pcrpkey", ".pcrsig", ".profile",
+	} {
+		args = append(args, "--set-section-flags", fmt.Sprintf("%s=data,readonly", sec))
+	}
+
 	builder.unsignedUKIPath = filepath.Join(builder.scratchDir, "unsigned.uki")
 
 	args = append(args, builder.SdStubPath, builder.unsignedUKIPath)
-
-	objcopy := "objcopy"
 
 	slog.Debug("Assembling", "args", args)
 

@@ -64,6 +64,9 @@ type Builder struct {
 	sections        []types.UkiSection
 	scratchDir      string
 	unsignedUKIPath string
+
+	ExtraCmdlines       []string
+	profileCmdlinePaths []string
 }
 
 // Build the UKI file.
@@ -149,7 +152,9 @@ func (builder *Builder) Build() error {
 		builder.generateSBAT,
 		builder.generatePCRPublicKey,
 		// append kernel last to account for decompression
-		builder.generateKernel,
+		builder.generateKernel,            // shared payload ends here
+		builder.generateBaseProfileAndSig, // emits .profile(base) + .pcrsig(base) if extras exist
+		builder.generateExtraProfiles,     // emits (.profile + .cmdline + .pcrsig) per extra
 		// measure sections last
 		builder.generatePCRSig,
 	} {
