@@ -14,7 +14,7 @@ uki-artifacts:
     SAVE ARTIFACT $INITRAMFS initrd AS LOCAL build/initrd
 
 build:
-    FROM golang:1.22
+    FROM golang:1.26
     WORKDIR build
     COPY go.mod .
     COPY go.sum .
