@@ -3,7 +3,7 @@ module github.com/kairos-io/go-ukify
 go 1.26.4
 
 require (
-	github.com/ThalesGroup/crypto11 v1.4.1
+	github.com/ThalesGroup/crypto11 v1.6.1
 	github.com/foxboron/go-uefi v0.0.0-20251010190908-d29549a44f29
 	github.com/google/go-tpm v0.9.5
 	github.com/onsi/ginkgo/v2 v2.32.0
@@ -23,7 +23,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/miekg/pkcs11 v1.1.1 // indirect
+	github.com/miekg/pkcs11 v1.1.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
