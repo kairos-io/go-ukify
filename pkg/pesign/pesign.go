@@ -202,7 +202,7 @@ type SigningKeyAndCertificate struct {
 
 // PCRSigner implements measure.RSAKey interface.
 type PCRSigner struct {
-	key *rsa.PrivateKey
+	key crypto.Signer
 }
 
 // Verify interface.
@@ -210,7 +210,7 @@ var _ types.RSAKey = (*PCRSigner)(nil)
 
 // PublicRSAKey returns the public key.
 func (s *PCRSigner) PublicRSAKey() *rsa.PublicKey {
-	return &s.key.PublicKey
+	return s.key.Public().(*rsa.PublicKey)
 }
 
 // Public returns the public key.
@@ -223,8 +223,17 @@ func (s *PCRSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) 
 	return s.key.Sign(rand, digest, opts)
 }
 
-// NewPCRSigner creates a new PCR signer from the private key file.
+// NewPCRSigner creates a new PCR signer from the private key file or a PKCS#11 URI.
 func NewPCRSigner(keyPath string) (*PCRSigner, error) {
+	// PKCS#11 URI detection
+	if strings.HasPrefix(keyPath, "pkcs11:") {
+		priv, err := loadPKCS11Signer(keyPath)
+		if err != nil {
+			return nil, err
+		}
+		return &PCRSigner{key: priv}, nil
+	}
+
 	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
