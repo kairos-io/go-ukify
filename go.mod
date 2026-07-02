@@ -3,7 +3,7 @@ module github.com/kairos-io/go-ukify
 go 1.26.4
 
 require (
-	github.com/ThalesGroup/crypto11 v1.6.1
+	github.com/ThalesGroup/crypto11 v1.6.2
 	github.com/foxboron/go-uefi v0.0.0-20251010190908-d29549a44f29
 	github.com/google/go-tpm v0.9.8
 	github.com/onsi/ginkgo/v2 v2.32.0
