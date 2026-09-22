@@ -1,16 +1,30 @@
 version: 2
 project_name: ukify
 builds:
-  - ldflags:
+  - id: ukify-amd64
+    ldflags:
       - -w -s
       - -X "github.com/itxaka/go-ukify/internal/common.VERSION={{.Tag}}"
       - -X "github.com/itxaka/go-ukify/internal/common.gitCommit={{.ShortCommit}}"
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
+      - CC=gcc
     goos:
       - linux
     goarch:
       - amd64
+    binary: '{{ .ProjectName }}'
+  - id: ukify-arm64
+    ldflags:
+      - -w -s
+      - -X "github.com/itxaka/go-ukify/internal/common.VERSION={{.Tag}}"
+      - -X "github.com/itxaka/go-ukify/internal/common.gitCommit={{.ShortCommit}}"
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+    goos:
+      - linux
+    goarch:
       - arm64
     binary: '{{ .ProjectName }}'
 source:
