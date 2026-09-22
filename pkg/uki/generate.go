@@ -306,10 +306,10 @@ func (builder *Builder) generateBaseProfileAndSig() error {
 		return err
 	}
 	builder.sections = append(builder.sections, types.UkiSection{
-		Name:   constants.Profile,
-		Path:   profPath,
-		Append: true,
-		// not measured
+		Name:    constants.Profile,
+		Path:    profPath,
+		Append:  true,
+		Measure: true,
 	})
 
 	// 2) .pcrsig (base) — sign over current sections with BASE cmdline
@@ -365,9 +365,10 @@ func (builder *Builder) generateExtraProfiles() error {
 			return err
 		}
 		builder.sections = append(builder.sections, types.UkiSection{
-			Name:   constants.Profile,
-			Path:   profPath,
-			Append: true,
+			Name:    constants.Profile,
+			Path:    profPath,
+			Append:  true,
+			Measure: true,
 		})
 
 		// 2) .cmdline for this profile

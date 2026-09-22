@@ -47,8 +47,11 @@ PRETTY_NAME="{{ .Name }} ({{ .Version }})"
 
 // OrderedSections returns the sections that are measured into PCR.
 //
-// Derived from https://github.com/systemd/systemd/blob/main/src/fundamental/tpm-pcr.h#L23-L36
-// .pcrsig section is omitted here since that's what we are calulating here.
+// Derived from https://github.com/systemd/systemd/blob/main/src/fundamental/uki.h
+// and uki.c: the stub measures every unified section except .pcrsig, in the
+// order of its own UnifiedSection enum. .pcrsig is omitted here since that's
+// what we are calulating here. The sections we never emit (.ucode, .dtbauto,
+// .hwids, .efifw) are left out, they only shift the order once they exist.
 func OrderedSections() []Section {
 	// DO NOT REARRANGE
 	return []Section{
@@ -60,7 +63,8 @@ func OrderedSections() []Section {
 		DTB,
 		Uname,
 		SBAT,
-		PCRPKey}
+		PCRPKey,
+		Profile}
 }
 
 // OSReleaseFor returns the contents of /etc/os-release for a given name and version.
