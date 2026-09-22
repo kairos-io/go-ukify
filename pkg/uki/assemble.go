@@ -120,6 +120,7 @@ const defaultSectionAlignment = 0x1000
 // UEFI loader asks for.
 func sectionAlignment(header *pe.OptionalHeader64) uint64 {
 	alignment := uint64(header.SectionAlignment)
+    // should be a power of 2 to be valid (second condition below)
 	if alignment == 0 || alignment&(alignment-1) != 0 {
 		return defaultSectionAlignment
 	}
