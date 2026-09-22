@@ -34,17 +34,24 @@ func (builder *Builder) assemble() error {
 	// find the first VMA address
 	lastSection := peFile.Sections[len(peFile.Sections)-1]
 
-	// align the VMA to 512 bytes
-	// https://github.com/saferwall/pe/blob/main/helper.go#L22-L26
-	const alignment = 0x1ff
-
 	header, ok := peFile.OptionalHeader.(*pe.OptionalHeader64)
 	if !ok {
 		return errors.New("failed to get optional header")
 	}
 
-	baseVMA := header.ImageBase + uint64(lastSection.VirtualAddress) + uint64(lastSection.VirtualSize)
-	baseVMA = (baseVMA + alignment) &^ alignment
+	// Every section we append must start at a multiple of the SectionAlignment
+	// the stub's PE header declares (0x1000 for the systemd stub). That is what
+	// the PE format requires and what systemd's ukify does. Firmware that applies
+	// per-section memory protection (edk2 DxeCore with an image protection
+	// policy, which OVMF enables in its SecureBoot build) sets page attributes on
+	// each code section and on the data between them. A section that starts
+	// inside a page makes those ranges impossible to express, the firmware
+	// refuses them, and in a DEBUG firmware build the refusal is an ASSERT that
+	// spins forever until the boot-services watchdog resets the machine.
+	// Aligning to 512 bytes, as this code did before, produced exactly that PE.
+	alignment := sectionAlignment(header)
+
+	baseVMA := alignUp(header.ImageBase+uint64(lastSection.VirtualAddress)+uint64(lastSection.VirtualSize), alignment)
 
 	// calculate sections size and VMA
 	for i := range builder.sections {
@@ -60,8 +67,7 @@ func (builder *Builder) assemble() error {
 		builder.sections[i].Size = uint64(st.Size())
 		builder.sections[i].VMA = baseVMA
 
-		baseVMA += builder.sections[i].Size
-		baseVMA = (baseVMA + alignment) &^ alignment
+		baseVMA = alignUp(baseVMA+builder.sections[i].Size, alignment)
 	}
 
 	// create the output file
@@ -101,4 +107,29 @@ func (builder *Builder) assemble() error {
 	cmd.Stderr = os.Stderr
 
 	return cmd.Run()
+}
+
+// defaultSectionAlignment is the page size every UEFI target uses and the value
+// the systemd stub is linked with. It is the fallback for a header that does not
+// declare a usable SectionAlignment.
+const defaultSectionAlignment = 0x1000
+
+// sectionAlignment returns the alignment every section of the image must start
+// at, taken from the PE optional header. A missing value or one that is not a
+// power of two falls back to the page size, which is the strictest alignment a
+// UEFI loader asks for.
+func sectionAlignment(header *pe.OptionalHeader64) uint64 {
+	alignment := uint64(header.SectionAlignment)
+    // should be a power of 2 to be valid (second condition below)
+	if alignment == 0 || alignment&(alignment-1) != 0 {
+		return defaultSectionAlignment
+	}
+
+	return alignment
+}
+
+// alignUp rounds value up to the next multiple of alignment, which must be a
+// power of two.
+func alignUp(value, alignment uint64) uint64 {
+	return (value + alignment - 1) &^ (alignment - 1)
 }
