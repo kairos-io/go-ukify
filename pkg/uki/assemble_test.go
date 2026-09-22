@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -17,11 +16,6 @@ import (
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
 )
-
-func TestSuite(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "UKI test Suite")
-}
 
 // The stub used as the base of the assembled image. It is a real PE32+ file
 // with SectionAlignment 0x1000 and FileAlignment 0x200, like the systemd stub.

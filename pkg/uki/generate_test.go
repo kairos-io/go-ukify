@@ -2,7 +2,6 @@ package uki
 
 import (
 	"os"
-	"testing"
 
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
@@ -11,11 +10,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestSuite(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "UKI test Suite")
-}
 
 var _ = Describe("Multi-profile sections", func() {
 	var builder *Builder
