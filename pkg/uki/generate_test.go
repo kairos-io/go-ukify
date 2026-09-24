@@ -2,6 +2,7 @@ package uki
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/kairos-io/go-ukify/pkg/constants"
 	"github.com/kairos-io/go-ukify/pkg/types"
@@ -63,3 +64,44 @@ func lastProfilePath(sections []types.UkiSection) string {
 	}
 	return path
 }
+
+var _ = Describe("Splash section", func() {
+	var builder *Builder
+
+	BeforeEach(func() {
+		dir, err := os.MkdirTemp("", "ukify-splash")
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(func() { Expect(os.RemoveAll(dir)).To(Succeed()) })
+
+		builder = &Builder{scratchDir: dir}
+	})
+
+	// The .splash section is signed and measured into PCR 11, so a splash we
+	// cannot read has to stop the build. Writing an empty section instead hands
+	// the operator a signed UKI with their branding silently missing.
+	It("fails when the named splash cannot be read", func() {
+		builder.Splash = filepath.Join(builder.scratchDir, "does-not-exist.bmp")
+
+		err := builder.generateSplash()
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("does-not-exist.bmp"))
+		Expect(builder.sections).To(BeEmpty(), "no section may be added for a splash we could not read")
+	})
+
+	It("embeds the splash the operator named", func() {
+		builder.Splash = filepath.Join(builder.scratchDir, "logo.bmp")
+		Expect(os.WriteFile(builder.Splash, []byte("BMsplash"), 0o600)).To(Succeed())
+
+		Expect(builder.generateSplash()).To(Succeed())
+		Expect(utils.SectionsData(builder.sections)).To(HaveKey(constants.Splash))
+		Expect(os.ReadFile(utils.SectionsData(builder.sections)[constants.Splash])).
+			To(Equal([]byte("BMsplash")))
+	})
+
+	It("falls back to the bundled splash when none is named", func() {
+		Expect(builder.generateSplash()).To(Succeed())
+		data, err := os.ReadFile(utils.SectionsData(builder.sections)[constants.Splash])
+		Expect(err).ToNot(HaveOccurred())
+		Expect(data).ToNot(BeEmpty())
+	})
+})

@@ -92,7 +92,16 @@ func (builder *Builder) generateSplash() error {
 
 	if builder.Splash != "" {
 		slog.Debug("Using splash", "file", builder.Splash)
-		data, _ = os.ReadFile(builder.Splash)
+
+		// A splash the operator named and we cannot read is a build failure, not
+		// a reason to fall back silently: the section is signed and measured, so
+		// swallowing the error ships a UKI with an empty .splash and no
+		// diagnostic anywhere in the build.
+		var err error
+		data, err = os.ReadFile(builder.Splash)
+		if err != nil {
+			return fmt.Errorf("reading splash %q: %w", builder.Splash, err)
+		}
 	} else {
 		slog.Debug("Using generic bundled splash")
 		data = common.Logo
