@@ -18,10 +18,18 @@ import (
 func (builder *Builder) assemble() error {
 
 	// Prefer llvm-objcopy when we have repeated section names (.profile/.cmdline)
-	useLLVM := len(builder.ExtraCmdlines) > 0
-	objcopy := "objcopy"
-	if useLLVM {
-		objcopy = "llvm-objcopy"
+	useLLVM := builder.needsLLVMObjcopy()
+
+	// Build resolves this already; resolve here too so assemble stays usable
+	// on its own.
+	objcopy := builder.objcopy
+	if objcopy == "" {
+		var err error
+
+		objcopy, err = builder.resolveObjcopy()
+		if err != nil {
+			return err
+		}
 	}
 
 	peFile, err := pe.Open(builder.SdStubPath)
@@ -120,7 +128,7 @@ const defaultSectionAlignment = 0x1000
 // UEFI loader asks for.
 func sectionAlignment(header *pe.OptionalHeader64) uint64 {
 	alignment := uint64(header.SectionAlignment)
-    // should be a power of 2 to be valid (second condition below)
+	// should be a power of 2 to be valid (second condition below)
 	if alignment == 0 || alignment&(alignment-1) != 0 {
 		return defaultSectionAlignment
 	}

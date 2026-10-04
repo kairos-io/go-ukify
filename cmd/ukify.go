@@ -35,21 +35,23 @@ var createUkify = &cobra.Command{
 		}
 
 		builder := &uki.Builder{
-			Arch:          viper.GetString("arch"),
-			Version:       viper.GetString("version"),
-			SdStubPath:    viper.GetString("sd-stub-path"),
-			SdBootPath:    viper.GetString("sd-boot-path"),
-			KernelPath:    viper.GetString("kernel"),
-			InitrdPath:    viper.GetString("initrd"),
-			Cmdline:       viper.GetString("cmdline"),
-			OutSdBootPath: viper.GetString("output-sdboot"),
-			OutUKIPath:    viper.GetString("output-uki"),
-			PCRKey:        viper.GetString("pcr-key"),
-			SBKey:         viper.GetString("sb-key"),
-			SBCert:        viper.GetString("sb-cert"),
-			Splash:        viper.GetString("splash"),
-			Phases:        parsedPhases,
-			ExtraCmdlines: viper.GetStringSlice("extra-cmdline"),
+			Arch:            viper.GetString("arch"),
+			Version:         viper.GetString("version"),
+			SdStubPath:      viper.GetString("sd-stub-path"),
+			SdBootPath:      viper.GetString("sd-boot-path"),
+			KernelPath:      viper.GetString("kernel"),
+			InitrdPath:      viper.GetString("initrd"),
+			Cmdline:         viper.GetString("cmdline"),
+			OutSdBootPath:   viper.GetString("output-sdboot"),
+			OutUKIPath:      viper.GetString("output-uki"),
+			PCRKey:          viper.GetString("pcr-key"),
+			SBKey:           viper.GetString("sb-key"),
+			SBCert:          viper.GetString("sb-cert"),
+			Splash:          viper.GetString("splash"),
+			Phases:          parsedPhases,
+			ExtraCmdlines:   viper.GetStringSlice("extra-cmdline"),
+			ObjcopyPath:     viper.GetString("objcopy"),
+			LLVMObjcopyPath: viper.GetString("llvm-objcopy"),
 		}
 
 		if viper.GetString("os-release") != "" {
@@ -78,6 +80,8 @@ func init() {
 	createUkify.Flags().String("splash", "", "Path to the custom logo splash BMP file.")
 	createUkify.Flags().Bool("debug", false, "Enable debug output")
 	createUkify.Flags().StringSlice("extra-cmdline", []string{}, "Additional profile cmdlines (repeatable)")
+	createUkify.Flags().String("objcopy", "", "objcopy used to assemble the UKI. Defaults to \"objcopy\" from $PATH. A GNU objcopy only carries the PE targets its own host triplet selects, so point this at a cross binutils to build for another architecture.")
+	createUkify.Flags().String("llvm-objcopy", "", "objcopy used when --extra-cmdline is given, because GNU objcopy refuses to repeat a section name. Defaults to \"llvm-objcopy\" from $PATH.")
 
 	_ = createUkify.MarkFlagRequired("sd-stub-path")
 	_ = createUkify.MarkFlagRequired("initrd")

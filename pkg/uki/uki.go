@@ -53,6 +53,19 @@ type Builder struct {
 
 	Splash string
 
+	// Tool options:
+	//
+	// ObjcopyPath is the objcopy that assembles the UKI. Empty means
+	// "objcopy", resolved from $PATH. A GNU objcopy only carries the PE
+	// targets its own host triplet selects, so a build for another
+	// architecture has to be pointed at a cross binutils here.
+	ObjcopyPath string
+	// LLVMObjcopyPath is the objcopy used when the UKI carries extra
+	// profiles. Empty means "llvm-objcopy", resolved from $PATH. GNU
+	// objcopy refuses to add a section whose name the file already has,
+	// and a multi-profile UKI repeats .profile and .cmdline.
+	LLVMObjcopyPath string
+
 	// Output options:
 	//
 	// Path to the signed sd-boot.
@@ -64,6 +77,7 @@ type Builder struct {
 	sections        []types.UkiSection
 	scratchDir      string
 	unsignedUKIPath string
+	objcopy         string
 
 	ExtraCmdlines       []string
 	profileCmdlinePaths []string
@@ -125,6 +139,15 @@ func (builder *Builder) Build() error {
 			log.Printf("failed to remove scratch dir: %v", err)
 		}
 	}()
+
+	// Resolve the assembler before anything expensive runs. assemble is the
+	// last step of the build, so a missing objcopy would otherwise surface
+	// after the kernel and initrd have been read and the PCR policy has been
+	// signed for every bank and phase.
+	builder.objcopy, err = builder.resolveObjcopy()
+	if err != nil {
+		return err
+	}
 
 	// Sign sd-boot if given and signing is enabled
 	if builder.SdBootPath != "" && builder.sbSignEnabled() {
