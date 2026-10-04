@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/kairos-io/go-ukify/pkg/pesign"
@@ -183,18 +184,65 @@ func (builder *Builder) Build() error {
 		}
 	} else {
 		// Move it to final place as we will remove the scratch dir
-		fileRead, err := os.ReadFile(builder.unsignedUKIPath)
+		outPath, err := builder.writeUnsignedUKI()
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1), fileRead, os.ModePerm)
-		if err != nil {
-			return err
-		}
-		slog.Info(fmt.Sprintf("Unsigned UKI at %s", strings.Replace(builder.OutUKIPath, "signed", "unsigned", -1)))
+		slog.Info(fmt.Sprintf("Unsigned UKI at %s", outPath))
 	}
 
 	return err
+}
+
+// writeUnsignedUKI copies the assembled UKI out of the scratch directory, which
+// Build removes on the way out, and returns the path it was written to.
+//
+// The mode is taken from the assembled file, so an unsigned build produces the
+// same permissions as a signed one, which pesign.Sign also carries over from
+// its input.
+func (builder *Builder) writeUnsignedUKI() (string, error) {
+	info, err := os.Stat(builder.unsignedUKIPath)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := os.ReadFile(builder.unsignedUKIPath)
+	if err != nil {
+		return "", err
+	}
+
+	outPath := builder.unsignedOutPath()
+	// The output path is the one the caller passed in --output, which is the
+	// whole point of the flag, so gosec G703 (path traversal from os.Args) has
+	// nothing to confine it to. The signed branch writes the same caller path
+	// through pesign.Sign.
+	// #nosec G703
+	if err := os.WriteFile(outPath, body, info.Mode()); err != nil {
+		return "", err
+	}
+
+	return outPath, nil
+}
+
+// unsignedOutPath is where an unsigned UKI is written.
+//
+// The artifact is not signed, so a name that says "signed" would be wrong, and
+// the default output name is uki.signed.efi. Renaming is therefore done on the
+// file name alone: the directory the caller chose is never rewritten, and a
+// name that already says "unsigned" is left as it is rather than turned into
+// "ununsigned", because "unsigned" contains "signed". A name with no "signed"
+// in it is used verbatim.
+//
+// OutUKIPath is the only output contract the caller has, so anything this
+// function cannot rename safely it must leave alone.
+func (builder *Builder) unsignedOutPath() string {
+	dir, name := filepath.Split(builder.OutUKIPath)
+
+	if !strings.Contains(name, "unsigned") {
+		name = strings.Replace(name, "signed", "unsigned", 1)
+	}
+
+	return filepath.Join(dir, name)
 }
 
 // sbSignEnabled let us know if we have to sign the sd-boot and uki final file
