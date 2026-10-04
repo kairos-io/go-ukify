@@ -5,6 +5,7 @@
 package pcr
 
 import (
+	"crypto"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -15,6 +16,23 @@ import (
 	"log/slog"
 	"os"
 )
+
+// PolicySigningHash is the hash the policy digest is signed with, for every
+// bank, including the sha1, sha384 and sha512 ones.
+//
+// It is not the bank's own algorithm. systemd verifies a signed PCR policy
+// with SHA-256 unconditionally: tpm2_policy_authorize() in
+// src/shared/tpm2-util.c hashes the data to be signed with TPM2_ALG_SHA256 and
+// then declares TPM2_ALG_RSASSA over TPM2_ALG_SHA256 in the TPMT_SIGNATURE it
+// passes to Esys_VerifySignature. systemd-measure says the same on the
+// producing side, in src/measure/measure-tool.c: "We always use SHA256 for
+// signing currently. Regardless of the bank."
+//
+// Signing with the bank's algorithm puts that algorithm's DigestInfo OID in
+// the PKCS#1 v1.5 signature, so the TPM rejects it and the node cannot unseal.
+// The policy digest itself is already SHA-256 for every bank, in
+// CalculatePolicy, matching tpm2_calculate_policy_pcr().
+const PolicySigningHash = crypto.SHA256
 
 // CalculateBankData calculates the PCR bank data for a given set of UKI file sections.
 //
@@ -76,7 +94,7 @@ func CalculateBankData(pcrNumber int, phases []types.PhaseInfo, alg tpm2.TPMAlgI
 			return nil, err
 		}
 
-		sigData, err := Sign(policyPCR, hashAlg, rsaKey)
+		sigData, err := Sign(policyPCR, PolicySigningHash, rsaKey)
 		if err != nil {
 			return nil, err
 		}
@@ -165,9 +183,7 @@ func SignPolicy(pcrNumber int, alg tpm2.TPMAlgID, rsaKey types.RSAKey, hashData 
 		return bankData, err
 	}
 
-	hashAlg, err := alg.Hash()
-
-	sigData, err := Sign(policyPCR, hashAlg, rsaKey)
+	sigData, err := Sign(policyPCR, PolicySigningHash, rsaKey)
 	if err != nil {
 		return bankData, err
 	}
