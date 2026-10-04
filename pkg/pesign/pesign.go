@@ -164,7 +164,25 @@ func NewSecureBootSigner(certPath, keyPath string) (*SecureBootSigner, error) {
 		return &SecureBootSigner{cert: cert, key: priv}, nil
 	}
 
-	// File-based key handling (unchanged)
+	// File-based key handling
+	rsaKey, err := parseRSAPrivateKey(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SecureBootSigner{
+		key:  rsaKey,
+		cert: cert,
+	}, nil
+}
+
+// parseRSAPrivateKey reads an RSA private key from a PEM file.
+//
+// Both signers are handed the same kind of key material, so both accept the
+// same encodings: PKCS#1 ("RSA PRIVATE KEY", what `openssl genrsa` writes on
+// OpenSSL 1.x) and PKCS#8 ("PRIVATE KEY", what `openssl genpkey` and OpenSSL 3
+// write). A key that parses but is not RSA is an error, not a panic.
+func parseRSAPrivateKey(keyPath string) (*rsa.PrivateKey, error) {
 	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
@@ -175,20 +193,21 @@ func NewSecureBootSigner(certPath, keyPath string) (*SecureBootSigner, error) {
 		return nil, errors.New("failed to decode private key")
 	}
 
-	rsaKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if rsaKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes); err == nil {
+		return rsaKey, nil
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private RSA key: %w", err)
 	}
 
-	rsaKeyParsed, ok := rsaKey.(*rsa.PrivateKey)
+	rsaKey, ok := key.(*rsa.PrivateKey)
 	if !ok {
-		return nil, errors.New("private key is not an RSA key")
+		return nil, fmt.Errorf("private key is not an RSA key, got %T", key)
 	}
 
-	return &SecureBootSigner{
-		key:  rsaKeyParsed,
-		cert: cert,
-	}, nil
+	return rsaKey, nil
 }
 
 // SigningKeyAndCertificate describes a signing key & certificate.
@@ -234,28 +253,10 @@ func NewPCRSigner(keyPath string) (*PCRSigner, error) {
 		return &PCRSigner{key: priv}, nil
 	}
 
-	keyData, err := os.ReadFile(keyPath)
+	rsaKey, err := parseRSAPrivateKey(keyPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// convert private key to rsa.PrivateKey
-	rsaPrivateKeyBlock, _ := pem.Decode(keyData)
-	if rsaPrivateKeyBlock == nil {
-		return nil, errors.New("failed to decode private key")
-	}
-
-	var rsaKey *rsa.PrivateKey
-	rsaKey, err = x509.ParsePKCS1PrivateKey(rsaPrivateKeyBlock.Bytes)
-	if err != nil {
-		// Try to see if its in a different format maybe?
-		key, err := x509.ParsePKCS8PrivateKey(rsaPrivateKeyBlock.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse private RSA key: %v", err)
-		}
-		rsaKey = key.(*rsa.PrivateKey)
-	}
-
-	//rsaKeyParsed := rsaKey.(*rsa.PrivateKey)
 	return &PCRSigner{rsaKey}, nil
 }
