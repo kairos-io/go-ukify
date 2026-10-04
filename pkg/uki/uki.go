@@ -85,6 +85,10 @@ func (builder *Builder) Build() error {
 		builder.Phases = types.OrderedPhases()
 	}
 
+	if err = builder.checkSecureBootPair(); err != nil {
+		return err
+	}
+
 	if builder.PCRSigner == nil {
 		if builder.PCRKey != "" {
 			signer, err := pesign.NewPCRSigner(builder.PCRKey)
@@ -195,6 +199,28 @@ func (builder *Builder) Build() error {
 	}
 
 	return err
+}
+
+// checkSecureBootPair refuses a half-configured Secure Boot request.
+//
+// SBKey and SBCert are one intent, not two capabilities: a caller that sets
+// only one of them asked for a signed UKI and lost the other value to a typo,
+// an unset variable or a dropped flag. Without this check sbSignEnabled is
+// false, every signing branch is skipped, and the build reports success while
+// writing an unsigned UKI.
+func (builder *Builder) checkSecureBootPair() error {
+	if builder.SecureBootSigner != nil {
+		return nil
+	}
+
+	switch {
+	case builder.SBKey != "" && builder.SBCert == "":
+		return fmt.Errorf("secure boot key given without a certificate: set the certificate as well, or neither, to build an unsigned UKI")
+	case builder.SBCert != "" && builder.SBKey == "":
+		return fmt.Errorf("secure boot certificate given without a key: set the key as well, or neither, to build an unsigned UKI")
+	}
+
+	return nil
 }
 
 // sbSignEnabled let us know if we have to sign the sd-boot and uki final file
