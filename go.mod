@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/eclipse-keypont/crypto11 v1.6.8
-	github.com/foxboron/go-uefi v0.0.0-20251010190908-d29549a44f29
+	github.com/foxboron/go-uefi v0.0.0-20261004203234-c7f1f57bdc6e
 	github.com/google/go-tpm v0.9.8
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.1
