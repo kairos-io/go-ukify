@@ -21,7 +21,6 @@ const (
 ID={{ .ID }}
 VERSION_ID={{ .Version }}
 PRETTY_NAME="{{ .Name }} ({{ .Version }})"
-)
 `
 	// EnterInitrd is the phase value extended to the PCR during the initrd.
 	EnterInitrd Phase = "enter-initrd"
