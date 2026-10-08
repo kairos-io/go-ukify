@@ -25,8 +25,13 @@ jobs:
         run: |
           go run github.com/onsi/ginkgo/v2/ginkgo run --covermode=atomic --coverprofile=coverage.out -v --race -r ./...
       - name: Codecov
+        # The upload is reporting, and this job is the repo's test gate, so keep
+        # it out of the verdict: a Codecov transport error can escape the action
+        # as an unhandled exception, which exits the step non-zero whatever
+        # fail_ci_if_error says. "Run tests" above still reds the job.
+        continue-on-error: true
         uses: codecov/codecov-action@v7
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          file: ./coverage.out
+          files: ./coverage.out
